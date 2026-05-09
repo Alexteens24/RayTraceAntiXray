@@ -4,12 +4,14 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 
-import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
 
 import com.vanillage.raytraceantixray.RayTraceAntiXray;
+
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 
 public final class RayTraceAntiXrayTabExecutor implements TabExecutor {
     private final RayTraceAntiXray plugin;
@@ -62,27 +64,27 @@ public final class RayTraceAntiXrayTabExecutor implements TabExecutor {
                         if (sender.hasPermission("raytraceantixray.command.raytraceantixray.timings.on")) {
                             if (args.length == 2) {
                                 plugin.setTimingsEnabled(true);
-                                sender.sendMessage("Timings turned on.");
+                                sender.sendMessage(Component.text("Timings turned on."));
                                 return true;
                             }
                         } else {
-                            sender.sendMessage(ChatColor.RED + "You don't have permissions.");
+                            sender.sendMessage(Component.text("You don't have permissions.", NamedTextColor.RED));
                             return true;
                         }
                     } else if (args[1].toLowerCase(Locale.ROOT).equals("off")) {
                         if (sender.hasPermission("raytraceantixray.command.raytraceantixray.timings.off")) {
                             if (args.length == 2) {
                                 plugin.setTimingsEnabled(false);
-                                sender.sendMessage("Timings turned off.");
+                                sender.sendMessage(Component.text("Timings turned off."));
                                 return true;
                             }
                         } else {
-                            sender.sendMessage(ChatColor.RED + "You don't have permissions.");
+                            sender.sendMessage(Component.text("You don't have permissions.", NamedTextColor.RED));
                             return true;
                         }
                     }
                 } else {
-                    sender.sendMessage(ChatColor.RED + "You don't have permissions.");
+                    sender.sendMessage(Component.text("You don't have permissions.", NamedTextColor.RED));
                     return true;
                 }
             }

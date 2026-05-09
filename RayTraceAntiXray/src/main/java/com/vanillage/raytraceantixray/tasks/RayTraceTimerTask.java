@@ -1,11 +1,17 @@
 package com.vanillage.raytraceantixray.tasks;
 
-import java.util.TimerTask;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.function.Consumer;
 
 import com.vanillage.raytraceantixray.RayTraceAntiXray;
 
-public final class RayTraceTimerTask extends TimerTask {
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
+
+/**
+ * Runs one ray-trace tick: schedules all player {@link com.vanillage.raytraceantixray.data.PlayerData} callables on the plugin executor pool.
+ * Intended to be driven by {@link org.bukkit.Bukkit#getAsyncScheduler()} so it does not use a {@link java.util.Timer} thread.
+ */
+public final class RayTraceTimerTask implements Consumer<ScheduledTask> {
     private final RayTraceAntiXray plugin;
 
     public RayTraceTimerTask(RayTraceAntiXray plugin) {
@@ -13,7 +19,7 @@ public final class RayTraceTimerTask extends TimerTask {
     }
 
     @Override
-    public void run() {
+    public void accept(ScheduledTask scheduledTask) {
         boolean timingsEnabled = plugin.isTimingsEnabled();
         long start = timingsEnabled ? System.currentTimeMillis() : 0L;
 

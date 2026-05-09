@@ -1,15 +1,16 @@
 package com.vanillage.raytraceantixray;
 
 import java.io.File;
-import java.util.Timer;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
+import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.craftbukkit.CraftWorld;
@@ -20,9 +21,9 @@ import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
 
-import com.comphenix.protocol.ProtocolLibrary;
+import com.github.retrooper.packetevents.PacketEvents;
+import com.github.retrooper.packetevents.event.PacketListenerCommon;
 import com.google.common.base.Throwables;
-import com.google.common.collect.MapMaker;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.vanillage.raytraceantixray.antixray.ChunkPacketBlockControllerAntiXray;
 import com.vanillage.raytraceantixray.commands.RayTraceAntiXrayTabExecutor;
@@ -38,23 +39,27 @@ import com.vanillage.raytraceantixray.tasks.UpdateBukkitRunnable;
 import io.papermc.paper.antixray.ChunkPacketBlockController;
 import io.papermc.paper.configuration.WorldConfiguration.Anticheat.AntiXray;
 import io.papermc.paper.configuration.type.EngineMode;
-import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 
 public final class RayTraceAntiXray extends JavaPlugin {
     // private volatile Configuration configuration;
     private boolean folia = false;
     private volatile boolean running = false;
     private volatile boolean timingsEnabled = false;
-    private final ConcurrentMap<ClientboundLevelChunkWithLightPacket, ChunkBlocks> packetChunkBlocksCache = new MapMaker().weakKeys().makeMap();
+    /** Pending obfuscated chunk payloads keyed by player then chunk column (see {@link #enqueuePendingChunkBlocks}). */
+    private final ConcurrentMap<UUID, ConcurrentMap<Long, ConcurrentLinkedQueue<ChunkBlocks>>> pendingChunkBlocksByPlayer = new ConcurrentHashMap<>();
     private final ConcurrentMap<UUID, PlayerData> playerData = new ConcurrentHashMap<>();
     private ExecutorService executorService;
-    private Timer timer;
+    private ScheduledTask rayTraceScheduledTask;
     private long updateTicks = 1L;
+    private PacketListenerCommon packetEventsChunkListener;
 
     @Override
     public void onEnable() {
@@ -70,21 +75,19 @@ public final class RayTraceAntiXray extends JavaPlugin {
         // configuration = config;
         // Initialize stuff.
 
+        // Folia-only type: not on Paper compile classpath when using paperDevBundle (Paper). Detect at runtime.
         try {
-            Class.forName("io.papermc.paper.threadedregions.RegionizedServer");
-            folia = true;
+            Class<?> regionizedServer = Class.forName("io.papermc.paper.threadedregions.RegionizedServer");
+            folia = regionizedServer.isInstance(getServer());
         } catch (ClassNotFoundException e) {
-
+            folia = false;
         }
 
         running = true;
-        // Use a combination of a tick thread (timer) and a ray trace thread pool.
-        // The timer schedules tasks (a task per player) to the thread pool and ensures a common and defined tick start and end time without overlap by waiting for the thread pool to finish all tasks.
-        // A scheduled thread pool with a task per player would also be possible but then there's no common tick.
+        // Async scheduler (Paper / Folia) drives a common ray-trace tick in wall-clock time; each tick submits work to the fixed ray-trace pool and waits for completion (invokeAll).
         executorService = Executors.newFixedThreadPool(Math.max(config.getInt("settings.anti-xray.ray-trace-threads"), 1), new ThreadFactoryBuilder().setThreadFactory(Executors.defaultThreadFactory()).setNameFormat("RayTraceAntiXray ray trace thread %d").setDaemon(true).build());
-        // Use a timer instead of a single thread scheduled executor because there is no equivalent for the timer's schedule method.
-        timer = new Timer("RayTraceAntiXray tick thread", true);
-        timer.schedule(new RayTraceTimerTask(this), 0L, Math.max(config.getLong("settings.anti-xray.ms-per-ray-trace-tick"), 1L));
+        long periodMs = Math.max(config.getLong("settings.anti-xray.ms-per-ray-trace-tick"), 1L);
+        rayTraceScheduledTask = Bukkit.getAsyncScheduler().runAtFixedRate(this, new RayTraceTimerTask(this), 0L, periodMs, TimeUnit.MILLISECONDS);
         updateTicks = Math.max(config.getLong("settings.anti-xray.update-ticks"), 1L);
 
         if (!folia) {
@@ -95,7 +98,8 @@ public final class RayTraceAntiXray extends JavaPlugin {
         PluginManager pluginManager = getServer().getPluginManager();
         pluginManager.registerEvents(new WorldListener(this), this);
         pluginManager.registerEvents(new PlayerListener(this), this);
-        ProtocolLibrary.getProtocolManager().addPacketListener(new PacketListener(this));
+        packetEventsChunkListener = new PacketListener(this);
+        PacketEvents.getAPI().getEventManager().registerListener(packetEventsChunkListener);
         // registerCommands();
         getCommand("raytraceantixray").setExecutor(new RayTraceAntiXrayTabExecutor(this));
         getLogger().info(getPluginMeta().getDisplayName() + " enabled");
@@ -126,7 +130,14 @@ public final class RayTraceAntiXray extends JavaPlugin {
                             throwable = t;
                         } finally {
                             // Cleanup stuff.
-                            ProtocolLibrary.getProtocolManager().removePacketListeners(this);
+                            try {
+                                if (packetEventsChunkListener != null) {
+                                    PacketEvents.getAPI().getEventManager().unregisterListener(packetEventsChunkListener);
+                                    packetEventsChunkListener = null;
+                                }
+                            } catch (Throwable ignored) {
+                                // PacketEvents may already be torn down during shutdown.
+                            }
                         }
                     } catch (Throwable t) {
                         if (throwable == null) {
@@ -136,7 +147,10 @@ public final class RayTraceAntiXray extends JavaPlugin {
                         }
                     } finally {
                         running = false;
-                        timer.cancel();
+                        if (rayTraceScheduledTask != null) {
+                            rayTraceScheduledTask.cancel();
+                            rayTraceScheduledTask = null;
+                        }
                     }
                 } catch (Throwable t) {
                     if (throwable == null) {
@@ -161,7 +175,7 @@ public final class RayTraceAntiXray extends JavaPlugin {
                     throwable.addSuppressed(t);
                 }
             } finally {
-                packetChunkBlocksCache.clear();
+                pendingChunkBlocksByPlayer.clear();
                 playerData.clear();
             }
         } catch (Throwable t) {
@@ -233,8 +247,26 @@ public final class RayTraceAntiXray extends JavaPlugin {
         this.timingsEnabled = timingsEnabled;
     }
 
-    public ConcurrentMap<ClientboundLevelChunkWithLightPacket, ChunkBlocks> getPacketChunkBlocksCache() {
-        return packetChunkBlocksCache;
+    public void enqueuePendingChunkBlocks(UUID playerId, int chunkX, int chunkZ, ChunkBlocks chunkBlocks) {
+        long chunkKey = ChunkPos.asLong(chunkX, chunkZ);
+        pendingChunkBlocksByPlayer
+            .computeIfAbsent(playerId, k -> new ConcurrentHashMap<>())
+            .computeIfAbsent(chunkKey, k -> new ConcurrentLinkedQueue<>())
+            .add(chunkBlocks);
+    }
+
+    public ChunkBlocks pollPendingChunkBlocks(UUID playerId, int chunkX, int chunkZ) {
+        long chunkKey = ChunkPos.asLong(chunkX, chunkZ);
+        ConcurrentMap<Long, ConcurrentLinkedQueue<ChunkBlocks>> byChunk = pendingChunkBlocksByPlayer.get(playerId);
+        if (byChunk == null) {
+            return null;
+        }
+        ConcurrentLinkedQueue<ChunkBlocks> queue = byChunk.get(chunkKey);
+        return queue != null ? queue.poll() : null;
+    }
+
+    public void clearPendingChunkBlocksFor(UUID playerId) {
+        pendingChunkBlocksByPlayer.remove(playerId);
     }
 
     public ConcurrentMap<UUID, PlayerData> getPlayerData() {

@@ -42,6 +42,7 @@ public final class PlayerListener implements Listener {
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
+        plugin.clearPendingChunkBlocksFor(event.getPlayer().getUniqueId());
         plugin.getPlayerData().remove(event.getPlayer().getUniqueId());
     }
 

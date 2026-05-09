@@ -82,6 +82,11 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
     private final boolean[] blockEntityGlobal = new boolean[Block.BLOCK_STATE_REGISTRY.size()];
     private final LevelChunkSection[] emptyNearbyChunkSections = {EMPTY_SECTION, EMPTY_SECTION, EMPTY_SECTION, EMPTY_SECTION};
     private final int maxBlockHeightUpdatePosition;
+    /**
+     * Paper calls {@link #shouldModify(ServerPlayer, LevelChunk)} on the server thread before {@link #getChunkPacketInfo}
+     * for the same outgoing chunk; we capture the player here so obfuscation (async) can queue chunk data for PacketEvents.
+     */
+    private static final ThreadLocal<ServerPlayer> ANTIXRAY_CHUNK_SEND_TARGET = new ThreadLocal<>();
 
     public ChunkPacketBlockControllerAntiXray(RayTraceAntiXray plugin, boolean rayTraceThirdPerson, double rayTraceDistance, boolean rehideBlocks, double rehideDistance, int maxRayTraceBlockCountPerChunk, Iterable<? extends String> toTrace, Level level, Executor executor) {
         this.plugin = plugin;
@@ -223,13 +228,21 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
 
     @Override
     public boolean shouldModify(ServerPlayer player, LevelChunk chunk) {
-        return !usePermission || !player.getBukkitEntity().hasPermission("paper.antixray.bypass");
+        boolean willModify = !usePermission || !player.getBukkitEntity().hasPermission("paper.antixray.bypass");
+        if (willModify) {
+            ANTIXRAY_CHUNK_SEND_TARGET.set(player);
+        } else {
+            ANTIXRAY_CHUNK_SEND_TARGET.remove();
+        }
+        return willModify;
     }
 
     @Override
     public ChunkPacketInfoAntiXray getChunkPacketInfo(ClientboundLevelChunkWithLightPacket chunkPacket, LevelChunk chunk) {
         // Return a new instance to collect data and objects in the right state while creating the chunk packet for thread safe access later
-        return new ChunkPacketInfoAntiXray(chunkPacket, chunk, this);
+        ServerPlayer targetPlayer = ANTIXRAY_CHUNK_SEND_TARGET.get();
+        ANTIXRAY_CHUNK_SEND_TARGET.remove();
+        return new ChunkPacketInfoAntiXray(chunkPacket, chunk, this, targetPlayer);
     }
 
     @Override
@@ -473,7 +486,13 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
         }
 
         if (plugin.isRunning()) {
-            plugin.getPacketChunkBlocksCache().put(chunkPacketInfoAntiXray.getChunkPacket(), new ChunkBlocks(chunkPacketInfoAntiXray.getChunk(), blocks));
+            ChunkBlocks chunkBlocks = new ChunkBlocks(chunkPacketInfoAntiXray.getChunk(), blocks);
+            ServerPlayer targetPlayer = chunkPacketInfoAntiXray.getTargetPlayer();
+            if (targetPlayer != null) {
+                plugin.enqueuePendingChunkBlocks(targetPlayer.getUUID(), chunk.getPos().x, chunk.getPos().z, chunkBlocks);
+            } else {
+                plugin.getLogger().warning("RayTraceAntiXray: chunk packet has no ServerPlayer context; ray tracing may miss this chunk (Paper should call shouldModify before getChunkPacketInfo).");
+            }
         }
 
         if (!blockEntities.isEmpty()) {
@@ -492,7 +511,12 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                         throw new RuntimeException(e);
                     }
                 });
-                // TODO: Also remove from chunkPacketInfoAntiXray.getChunkPacket().getExtraPackets(), however, it's unlikely that it contains anything.
+                /*
+                 * Note only (no implementation): obscured block entities are removed from chunk data's main list above.
+                 * ClientboundLevelChunkWithLightPacket#getExtraPackets() can carry additional block-entity payloads;
+                 * we do not strip those here. The original RayTraceAntiXray did not either. Vanilla/Paper rarely use
+                 * extraPackets for ordinary chunk sends.
+                 */
             } catch (IllegalAccessException e) {
                 throw new RuntimeException(e);
             }
