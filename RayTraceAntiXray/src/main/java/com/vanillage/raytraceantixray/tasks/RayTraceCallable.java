@@ -241,7 +241,6 @@ public final class RayTraceCallable implements Callable<Void> {
             rayTrace();
         } catch (Throwable t) {
             plugin.getLogger().log(Level.SEVERE, "An error occured on the RayTraceAntiXray tick thread", t);
-            throw t;
         }
 
         return null;

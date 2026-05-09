@@ -1,5 +1,7 @@
 package com.vanillage.raytraceantixray.tasks;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Consumer;
@@ -74,6 +76,7 @@ public final class UpdateBukkitRunnable extends BukkitRunnable implements Consum
         Environment environment = world.getEnvironment();
         Queue<Result> results = playerData.getResults();
         Result result;
+        List<Packet<?>> packetsToSend = new ArrayList<>();
 
         while ((result = results.poll()) != null) {
             ChunkBlocks chunkBlocks = result.getChunkBlocks();
@@ -113,36 +116,65 @@ public final class UpdateBukkitRunnable extends BukkitRunnable implements Consum
                 blockState = Blocks.STONE.defaultBlockState();
             }
 
-            // We can't send the packet normally (through the packet queue).
-            // We bypass the packet queue since our calculations are based on the packet state (not the server state) as seen by the packet listener.
-            // As described above, the packet queue could for example already contain a chunk unload packet.
-            // Thus we send our packet immediately before that.
-            sendPacketImmediately(player, new ClientboundBlockUpdatePacket(block, blockState));
+            packetsToSend.add(new ClientboundBlockUpdatePacket(block, blockState));
 
             if (blockEntity != null) {
-                Packet<ClientGamePacketListener> packet = blockEntity.getUpdatePacket();
+                Packet<ClientGamePacketListener> bePacket = blockEntity.getUpdatePacket();
 
-                if (packet != null) {
-                    sendPacketImmediately(player, packet);
+                if (bePacket != null) {
+                    packetsToSend.add(bePacket);
                 }
             }
         }
+
+        // Bypass Minecraft's packet queue (reason per packet comments above). Netty Channel must only be touched on its event loop.
+        // Batch write + single flush: preserves packet order, avoids one flush syscall per block, and avoids scheduling one event-loop task per packet.
+        sendPacketsOnChannelEventLoop(player, packetsToSend);
     }
 
-    private static boolean sendPacketImmediately(Player player, Object packet) {
+    /**
+     * Writes directly to the player's Netty outbound pipeline (not via the usual server packet queue).
+     * Must run writes on the channel's {@link io.netty.channel.EventLoop}; {@link Channel#writeAndFlush(Object)} from the main
+     * or region thread would hop to the loop once per call anyway — batching reduces queue pressure.
+     */
+    private static void sendPacketsOnChannelEventLoop(Player player, List<Packet<?>> packets) {
+        if (packets.isEmpty()) {
+            return;
+        }
+
         ServerGamePacketListenerImpl connection = ((CraftPlayer) player).getHandle().connection;
 
         if (connection == null || connection.processedDisconnect) {
-            return false;
+            return;
         }
 
         Channel channel = connection.connection.channel;
 
         if (channel == null || !channel.isOpen()) {
-            return false;
+            return;
         }
 
-        channel.writeAndFlush(packet);
-        return true;
+        channel.eventLoop().execute(() -> {
+            ServerGamePacketListenerImpl conn = ((CraftPlayer) player).getHandle().connection;
+
+            if (conn == null || conn.processedDisconnect) {
+                return;
+            }
+
+            Channel ch = conn.connection.channel;
+
+            // Must be the same Channel we scheduled on: otherwise this runnable is on the wrong event loop for `ch`.
+            if (ch == null || ch != channel || !ch.isOpen()) {
+                return;
+            }
+
+            try {
+                for (Packet<?> packet : packets) {
+                    ch.write(packet);
+                }
+            } finally {
+                ch.flush();
+            }
+        });
     }
 }

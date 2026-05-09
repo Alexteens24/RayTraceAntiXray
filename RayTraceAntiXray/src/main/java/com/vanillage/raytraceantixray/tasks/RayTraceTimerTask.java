@@ -2,6 +2,7 @@ package com.vanillage.raytraceantixray.tasks;
 
 import java.util.concurrent.RejectedExecutionException;
 import java.util.function.Consumer;
+import java.util.logging.Level;
 
 import com.vanillage.raytraceantixray.RayTraceAntiXray;
 
@@ -28,7 +29,11 @@ public final class RayTraceTimerTask implements Consumer<ScheduledTask> {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } catch (RejectedExecutionException e) {
-
+            if (plugin.isRunning()) {
+                plugin.getLogger().log(Level.WARNING, "Ray trace pool rejected a tick (shutdown or saturated)", e);
+            }
+        } catch (Throwable t) {
+            plugin.getLogger().log(Level.SEVERE, "Error while scheduling ray trace tasks", t);
         }
 
         if (timingsEnabled) {

@@ -98,6 +98,11 @@ public final class RayTraceAntiXray extends JavaPlugin {
         PluginManager pluginManager = getServer().getPluginManager();
         pluginManager.registerEvents(new WorldListener(this), this);
         pluginManager.registerEvents(new PlayerListener(this), this);
+        // Worlds load before plugins enable; WorldInitEvent already ran — patch controllers for existing worlds.
+        for (World w : Bukkit.getWorlds()) {
+            WorldListener.handleLoad(this, w);
+        }
+
         packetEventsChunkListener = new PacketListener(this);
         PacketEvents.getAPI().getEventManager().registerListener(packetEventsChunkListener);
         // registerCommands();
