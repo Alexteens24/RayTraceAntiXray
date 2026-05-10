@@ -19,7 +19,6 @@ import com.vanillage.raytraceantixray.data.LongWrapper;
 import com.vanillage.raytraceantixray.data.PlayerData;
 import com.vanillage.raytraceantixray.data.Result;
 
-import io.netty.channel.Channel;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.protocol.Packet;
@@ -127,17 +126,16 @@ public final class UpdateBukkitRunnable extends BukkitRunnable implements Consum
             }
         }
 
-        // Bypass Minecraft's packet queue (reason per packet comments above). Netty Channel must only be touched on its event loop.
-        // Batch write + single flush: preserves packet order, avoids one flush syscall per block, and avoids scheduling one event-loop task per packet.
-        sendPacketsOnChannelEventLoop(player, packetsToSend);
+        // Send via Connection#send so packets go through the normal outbound pipeline (encoding, debug handlers,
+        // compatibility with other plugins). Avoids raw Netty writes that could reorder relative to other outbound traffic.
+        sendPacketsViaConnection(player, packetsToSend);
     }
 
     /**
-     * Writes directly to the player's Netty outbound pipeline (not via the usual server packet queue).
-     * Must run writes on the channel's {@link io.netty.channel.EventLoop}; {@link Channel#writeAndFlush(Object)} from the main
-     * or region thread would hop to the loop once per call anyway — batching reduces queue pressure.
+     * Sends {@link ClientboundBlockUpdatePacket} and optional block-entity packets through
+     * {@link ServerGamePacketListenerImpl#send(Packet)}, matching normal server behaviour for plugin interoperability.
      */
-    private static void sendPacketsOnChannelEventLoop(Player player, List<Packet<?>> packets) {
+    private static void sendPacketsViaConnection(Player player, List<Packet<?>> packets) {
         if (packets.isEmpty()) {
             return;
         }
@@ -148,33 +146,8 @@ public final class UpdateBukkitRunnable extends BukkitRunnable implements Consum
             return;
         }
 
-        Channel channel = connection.connection.channel;
-
-        if (channel == null || !channel.isOpen()) {
-            return;
+        for (Packet<?> packet : packets) {
+            connection.send(packet);
         }
-
-        channel.eventLoop().execute(() -> {
-            ServerGamePacketListenerImpl conn = ((CraftPlayer) player).getHandle().connection;
-
-            if (conn == null || conn.processedDisconnect) {
-                return;
-            }
-
-            Channel ch = conn.connection.channel;
-
-            // Must be the same Channel we scheduled on: otherwise this runnable is on the wrong event loop for `ch`.
-            if (ch == null || ch != channel || !ch.isOpen()) {
-                return;
-            }
-
-            try {
-                for (Packet<?> packet : packets) {
-                    ch.write(packet);
-                }
-            } finally {
-                ch.flush();
-            }
-        });
     }
 }

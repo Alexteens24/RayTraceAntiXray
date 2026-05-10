@@ -110,134 +110,68 @@ public final class RayTraceAntiXray extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        // The server catches all throwables and may continue to run after disabling this plugin.
-        // We want to ensure as much as possible that everything is left behind in a clean and defined state.
-        // So the goal is to at least attempt to execute all critical sections of code, regardless of what happens before.
-        // Considering errors during error handling and JLS 11.1.3. Asynchronous Exceptions, throwables could potentially be thrown anywhere (even between blocks of code or statements?).
-        // Thus the only way is to nest try-finally statements like this: try { try { } finally { } } finally { }
-        // According to the bytecode of nested try-catch statements in JVMS 3.12, all nested try blocks are entered at the same time.
-        // So we either reach the innermost try block, in which case all blocks will be at least attempt to be executed, or no block is entered at all (e.g. in case of a throwable being thrown before).
-        // Both outcomes yield a defined state of this plugin.
-        // A more intuitive way would be to nest inside of the finally clause like this: try { } finally { try { } finally { } }
-        // However, this doesn't provide the same guarantees as described above.
-        // Additionally, we can add catch clauses to collect suppressed exceptions and rethrow in the last finally clause.
         Throwable throwable = null;
 
-        try {
+        if (packetEventsChunkListener != null) {
             try {
-                try {
-                    try {
-                        try {
-                            // unregisterCommands();
-                        } catch (Throwable t) {
-                            throwable = t;
-                        } finally {
-                            // Cleanup stuff.
-                            try {
-                                if (packetEventsChunkListener != null) {
-                                    PacketEvents.getAPI().getEventManager().unregisterListener(packetEventsChunkListener);
-                                    packetEventsChunkListener = null;
-                                }
-                            } catch (Throwable ignored) {
-                                // PacketEvents may already be torn down during shutdown.
-                            }
-                        }
-                    } catch (Throwable t) {
-                        if (throwable == null) {
-                            throwable = t;
-                        } else {
-                            throwable.addSuppressed(t);
-                        }
-                    } finally {
-                        running = false;
-                        if (rayTraceScheduledTask != null) {
-                            rayTraceScheduledTask.cancel();
-                            rayTraceScheduledTask = null;
-                        }
-                    }
-                } catch (Throwable t) {
-                    if (throwable == null) {
-                        throwable = t;
-                    } else {
-                        throwable.addSuppressed(t);
-                    }
-                } finally {
-                    executorService.shutdownNow();
+                PacketEvents.getAPI().getEventManager().unregisterListener(packetEventsChunkListener);
+                packetEventsChunkListener = null;
+            } catch (Throwable ignored) {
+                // PacketEvents may already be torn down during shutdown.
+            }
+        }
 
-                    try {
-                        executorService.awaitTermination(1000L, TimeUnit.MILLISECONDS);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        throw new RuntimeException(e);
-                    }
-                }
-            } catch (Throwable t) {
-                if (throwable == null) {
-                    throwable = t;
-                } else {
-                    throwable.addSuppressed(t);
-                }
-            } finally {
-                pendingChunkBlocksByPlayer.clear();
-                for (PlayerData pd : playerData.values()) {
-                    if (pd.getBlockUpdateTask() != null) {
-                        pd.getBlockUpdateTask().cancel();
-                    }
-                }
-                playerData.clear();
+        try {
+            running = false;
+            if (rayTraceScheduledTask != null) {
+                rayTraceScheduledTask.cancel();
+                rayTraceScheduledTask = null;
             }
         } catch (Throwable t) {
-            if (throwable == null) {
-                throwable = t;
-            } else {
-                throwable.addSuppressed(t);
+            throwable = mergeThrowables(throwable, t);
+        }
+
+        try {
+            executorService.shutdownNow();
+            executorService.awaitTermination(1000L, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throwable = mergeThrowables(throwable, new RuntimeException(e));
+        } catch (Throwable t) {
+            throwable = mergeThrowables(throwable, t);
+        }
+
+        try {
+            pendingChunkBlocksByPlayer.clear();
+            for (PlayerData pd : playerData.values()) {
+                if (pd.getBlockUpdateTask() != null) {
+                    pd.getBlockUpdateTask().cancel();
+                }
             }
-        } finally {
-            if (throwable != null) {
-                Throwables.throwIfUnchecked(throwable);
-                throw new RuntimeException(throwable);
-            }
+            playerData.clear();
+        } catch (Throwable t) {
+            throwable = mergeThrowables(throwable, t);
+        }
+
+        if (throwable != null) {
+            Throwables.throwIfUnchecked(throwable);
+            throw new RuntimeException(throwable);
         }
 
         getLogger().info(getPluginMeta().getDisplayName() + " disabled");
     }
 
-    /* public synchronized void onReload() {
-        Throwable throwable = null;
-
-        try {
-            try {
-                // Cleanup stuff.
-            } catch (Throwable t) {
-                throwable = t;
-            } finally {
-                if (throwable != null) {
-                    getServer().getPluginManager().disablePlugin(this);
-                }
-            }
-        } catch (Throwable t) {
-            if (throwable == null) {
-                throwable = t;
-            } else {
-                throwable.addSuppressed(t);
-            }
-        } finally {
-            if (throwable != null) {
-                Throwables.throwIfUnchecked(throwable);
-                throw new RuntimeException(throwable);
-            }
+    /** First non-null wins as primary; additional throwables are {@link Throwable#addSuppressed}. */
+    private static Throwable mergeThrowables(Throwable primary, Throwable next) {
+        if (next == null) {
+            return primary;
         }
-
-        saveDefaultConfig();
-        reloadConfig();
-        FileConfiguration config = getConfig();
-        config.options().copyDefaults(true);
-        // Add defaults.
-        // saveConfig();
-        // configuration = config;
-        // Initialize stuff.
-        getLogger().info(getPluginMeta().getDisplayName() + " reloaded");
-    } */
+        if (primary == null) {
+            return next;
+        }
+        primary.addSuppressed(next);
+        return primary;
+    }
 
     public boolean isFolia() {
         return folia;
