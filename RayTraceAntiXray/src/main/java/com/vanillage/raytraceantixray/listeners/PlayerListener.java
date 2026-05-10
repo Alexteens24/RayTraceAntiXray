@@ -1,5 +1,8 @@
 package com.vanillage.raytraceantixray.listeners;
 
+import java.util.UUID;
+
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -9,6 +12,8 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.util.Vector;
+
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 
 import com.vanillage.raytraceantixray.RayTraceAntiXray;
 import com.vanillage.raytraceantixray.data.PlayerData;
@@ -23,11 +28,25 @@ public final class PlayerListener implements Listener {
         this.plugin = plugin;
     }
 
-    @EventHandler
-    public void onPlayerJoin(PlayerJoinEvent event) {
-        Player player = event.getPlayer();
+    /**
+     * Players already online when the plugin enables do not get {@link PlayerJoinEvent}.
+     */
+    public static void registerExistingPlayers(RayTraceAntiXray plugin) {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            register(plugin, player);
+        }
+    }
 
+    /**
+     * Registers ray-trace data and the repeating block-update task on this player's region scheduler
+     * (required on Folia/Canvas so {@link net.minecraft.world.level.Level#getBlockState} has region context).
+     */
+    public static void register(RayTraceAntiXray plugin, Player player) {
         if (!plugin.validatePlayer(player)) {
+            return;
+        }
+
+        if (plugin.getPlayerData().containsKey(player.getUniqueId())) {
             return;
         }
 
@@ -35,15 +54,24 @@ public final class PlayerListener implements Listener {
         playerData.setCallable(new RayTraceCallable(plugin, playerData));
         plugin.getPlayerData().put(player.getUniqueId(), playerData);
 
-        if (plugin.isFolia()) {
-            player.getScheduler().runAtFixedRate(plugin, new UpdateBukkitRunnable(plugin, player), null, 1L, plugin.getUpdateTicks());
-        }
+        ScheduledTask updateTask = player.getScheduler().runAtFixedRate(plugin, new UpdateBukkitRunnable(plugin, player), null, 1L, plugin.getUpdateTicks());
+        playerData.setBlockUpdateTask(updateTask);
+    }
+
+    @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        register(plugin, event.getPlayer());
     }
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
-        plugin.clearPendingChunkBlocksFor(event.getPlayer().getUniqueId());
-        plugin.getPlayerData().remove(event.getPlayer().getUniqueId());
+        UUID id = event.getPlayer().getUniqueId();
+        PlayerData data = plugin.getPlayerData().get(id);
+        if (data != null && data.getBlockUpdateTask() != null) {
+            data.getBlockUpdateTask().cancel();
+        }
+        plugin.clearPendingChunkBlocksFor(id);
+        plugin.getPlayerData().remove(id);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

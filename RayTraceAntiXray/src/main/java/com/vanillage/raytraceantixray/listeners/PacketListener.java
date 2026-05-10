@@ -30,8 +30,8 @@ import net.minecraft.world.level.chunk.LevelChunk;
  * Chunk anti-xray data is matched using a per-player queue keyed by chunk column,
  * filled when Paper finishes obfuscation (see {@link com.vanillage.raytraceantixray.antixray.ChunkPacketBlockControllerAntiXray}).
  * <p>
- * On Folia, {@link PacketSendEvent} may run on a Netty thread; any use of {@link Player}, worlds, or
- * {@link LevelChunk} is deferred to {@link Player#getScheduler()} so region ownership rules are respected.
+ * {@link PacketSendEvent} may run on a Netty thread; any use of {@link Player}, worlds, or
+ * {@link LevelChunk} is deferred to {@link Player#getScheduler()} (Folia / Canvas region rules).
  */
 public final class PacketListener extends PacketListenerAbstract {
     private final RayTraceAntiXray plugin;
@@ -62,15 +62,11 @@ public final class PacketListener extends PacketListenerAbstract {
         int chunkX = wrapper.getColumn().getX();
         int chunkZ = wrapper.getColumn().getZ();
 
-        if (plugin.isFolia()) {
-            player.getScheduler().run(plugin, (ScheduledTask task) -> finishChunkData(player, chunkX, chunkZ), null);
-        } else {
-            finishChunkData(player, chunkX, chunkZ);
-        }
+        player.getScheduler().run(plugin, (ScheduledTask task) -> finishChunkData(player, chunkX, chunkZ), null);
     }
 
     /**
-     * Runs on the correct region thread under Folia; may run on the main thread on Paper.
+     * Runs on the player's region thread ({@link Player#getScheduler()}).
      */
     private void finishChunkData(Player player, int chunkX, int chunkZ) {
         if (!player.isOnline()) {
@@ -94,7 +90,7 @@ public final class PacketListener extends PacketListenerAbstract {
             if (!location.getWorld().equals(playerData.getLocations()[0].getWorld())) {
                 playerData = new PlayerData(RayTraceAntiXray.getLocations(player, new VectorialLocation(location)));
                 playerData.setCallable(new RayTraceCallable(plugin, playerData));
-                playerDataMap.put(uniqueId, playerData);
+                plugin.replacePlayerData(uniqueId, playerData);
             }
 
             return;
@@ -124,7 +120,7 @@ public final class PacketListener extends PacketListenerAbstract {
 
             playerData = new PlayerData(RayTraceAntiXray.getLocations(player, new VectorialLocation(location)));
             playerData.setCallable(new RayTraceCallable(plugin, playerData));
-            playerDataMap.put(uniqueId, playerData);
+            plugin.replacePlayerData(uniqueId, playerData);
         }
 
         chunkBlocks = new ChunkBlocks(chunk, new HashMap<>(chunkBlocks.getBlocks()));
@@ -140,11 +136,7 @@ public final class PacketListener extends PacketListenerAbstract {
         WrapperPlayServerUnloadChunk wrapper = new WrapperPlayServerUnloadChunk(event);
         long chunkKey = ChunkPos.asLong(wrapper.getChunkX(), wrapper.getChunkZ());
 
-        if (plugin.isFolia()) {
-            player.getScheduler().run(plugin, (ScheduledTask task) -> finishUnloadChunk(player, chunkKey), null);
-        } else {
-            finishUnloadChunk(player, chunkKey);
-        }
+        player.getScheduler().run(plugin, (ScheduledTask task) -> finishUnloadChunk(player, chunkKey), null);
     }
 
     private void finishUnloadChunk(Player player, long chunkKey) {
@@ -167,11 +159,7 @@ public final class PacketListener extends PacketListenerAbstract {
             return;
         }
 
-        if (plugin.isFolia()) {
-            player.getScheduler().run(plugin, (ScheduledTask task) -> finishRespawn(player), null);
-        } else {
-            finishRespawn(player);
-        }
+        player.getScheduler().run(plugin, (ScheduledTask task) -> finishRespawn(player), null);
     }
 
     private void finishRespawn(Player player) {

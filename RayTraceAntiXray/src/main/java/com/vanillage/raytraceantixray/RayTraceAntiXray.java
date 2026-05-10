@@ -34,7 +34,6 @@ import com.vanillage.raytraceantixray.listeners.PacketListener;
 import com.vanillage.raytraceantixray.listeners.PlayerListener;
 import com.vanillage.raytraceantixray.listeners.WorldListener;
 import com.vanillage.raytraceantixray.tasks.RayTraceTimerTask;
-import com.vanillage.raytraceantixray.tasks.UpdateBukkitRunnable;
 
 import io.papermc.paper.antixray.ChunkPacketBlockController;
 import io.papermc.paper.configuration.WorldConfiguration.Anticheat.AntiXray;
@@ -90,14 +89,13 @@ public final class RayTraceAntiXray extends JavaPlugin {
         rayTraceScheduledTask = Bukkit.getAsyncScheduler().runAtFixedRate(this, new RayTraceTimerTask(this), 0L, periodMs, TimeUnit.MILLISECONDS);
         updateTicks = Math.max(config.getLong("settings.anti-xray.update-ticks"), 1L);
 
-        if (!folia) {
-            new UpdateBukkitRunnable(this).runTaskTimer(this, 0L, updateTicks);
-        }
+        // Block updates run per-player via PlayerListener + EntityScheduler (required on Folia/Canvas for world reads).
 
         // Register events.
         PluginManager pluginManager = getServer().getPluginManager();
         pluginManager.registerEvents(new WorldListener(this), this);
         pluginManager.registerEvents(new PlayerListener(this), this);
+        PlayerListener.registerExistingPlayers(this);
         // Worlds load before plugins enable; WorldInitEvent already ran — patch controllers for existing worlds.
         for (World w : Bukkit.getWorlds()) {
             WorldListener.handleLoad(this, w);
@@ -181,6 +179,11 @@ public final class RayTraceAntiXray extends JavaPlugin {
                 }
             } finally {
                 pendingChunkBlocksByPlayer.clear();
+                for (PlayerData pd : playerData.values()) {
+                    if (pd.getBlockUpdateTask() != null) {
+                        pd.getBlockUpdateTask().cancel();
+                    }
+                }
                 playerData.clear();
             }
         } catch (Throwable t) {
@@ -278,6 +281,17 @@ public final class RayTraceAntiXray extends JavaPlugin {
         return playerData;
     }
 
+    /**
+     * Replaces {@link PlayerData} while keeping the per-player block-update {@link ScheduledTask}
+     * (see {@link PlayerListener}) so disconnect / disable still cancel the correct task.
+     */
+    public void replacePlayerData(UUID uniqueId, PlayerData newData) {
+        PlayerData old = playerData.put(uniqueId, newData);
+        if (old != null && old.getBlockUpdateTask() != null) {
+            newData.setBlockUpdateTask(old.getBlockUpdateTask());
+        }
+    }
+
     public ExecutorService getExecutorService() {
         return executorService;
     }
@@ -304,14 +318,11 @@ public final class RayTraceAntiXray extends JavaPlugin {
     public boolean validatePlayerData(Player player, PlayerData playerData, String methodName) {
         if (playerData == null) {
             if (validatePlayer(player)) {
-                // TODO: More logic and logging will be added here once we support reloading.
                 Logger logger = getLogger();
                 logger.warning("Missing player data detected for player " + player.getName() + " in method " + methodName);
                 logger.warning("Please note that reloading this plugin isn't yet supported");
                 logger.warning("Also make sure you are using the correct plugin version for your Minecraft version");
                 logger.warning("Please restart your server");
-                // Let the caller fail hard to print a stack trace.
-                return true;
             }
 
             return false;

@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.vanillage.raytraceantixray"
-version = "1.16.3"
+version = "1.16.3.1"
 description = "Paper plugin for server-side async multithreaded ray tracing to hide ores that are exposed to air using Paper Anti-Xray engine-mode 1."
 
 val paperVersion = (project.findProperty("paperVersion") as String?) ?: "1.21.11-R0.1-SNAPSHOT"
