@@ -314,6 +314,8 @@ public final class RayTraceCallable implements Callable<Void> {
 
                 if (distanceSquared < rehideDistanceSquared) {
                     int sectionY = y >> 4;
+                    // One cache init per block; viewing origin differs per location but chunk section is the same.
+                    cachedSectionBlockOcclusionGetter.initializeCache(chunk, chunkX, sectionY, chunkZ);
 
                     for (int i = 0; i < locations.length; i++) {
                         VectorialLocation location = locations[i];
@@ -321,7 +323,6 @@ public final class RayTraceCallable implements Callable<Void> {
                         double directionX = direction.getX();
                         double directionY = direction.getY();
                         double directionZ = direction.getZ();
-                        cachedSectionBlockOcclusionGetter.initializeCache(chunk, chunkX, sectionY, chunkZ);
 
                         if (i == 0) {
                             if (blockOcclusionCulling.isVisible(x, y, z, centerX, centerY, centerZ, differenceX, differenceY, differenceZ, distanceSquared, directionX, directionY, directionZ)) {
