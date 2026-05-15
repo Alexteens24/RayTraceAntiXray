@@ -13,7 +13,8 @@ val paperVersion = (project.findProperty("paperVersion") as String?) ?: "1.21.11
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(21))
+        // Paper 26.1+ userdev runs Paperclip with the toolchain JDK; requires Java 25+.
+        languageVersion.set(JavaLanguageVersion.of(25))
     }
     withSourcesJar()
 }
@@ -42,7 +43,7 @@ sourceSets {
 tasks {
     compileJava {
         options.encoding = "UTF-8"
-        options.release.set(21)
+        options.release.set(25)
     }
 
     processResources {

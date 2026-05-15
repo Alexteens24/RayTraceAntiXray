@@ -190,7 +190,7 @@ public final class RayTraceAntiXray extends JavaPlugin {
     }
 
     public void enqueuePendingChunkBlocks(UUID playerId, int chunkX, int chunkZ, ChunkBlocks chunkBlocks) {
-        long chunkKey = ChunkPos.asLong(chunkX, chunkZ);
+        long chunkKey = ChunkPos.pack(chunkX, chunkZ);
         pendingChunkBlocksByPlayer
             .computeIfAbsent(playerId, k -> new ConcurrentHashMap<>())
             .computeIfAbsent(chunkKey, k -> new ConcurrentLinkedQueue<>())
@@ -198,7 +198,7 @@ public final class RayTraceAntiXray extends JavaPlugin {
     }
 
     public ChunkBlocks pollPendingChunkBlocks(UUID playerId, int chunkX, int chunkZ) {
-        long chunkKey = ChunkPos.asLong(chunkX, chunkZ);
+        long chunkKey = ChunkPos.pack(chunkX, chunkZ);
         ConcurrentMap<Long, ConcurrentLinkedQueue<ChunkBlocks>> byChunk = pendingChunkBlocksByPlayer.get(playerId);
         if (byChunk == null) {
             return null;

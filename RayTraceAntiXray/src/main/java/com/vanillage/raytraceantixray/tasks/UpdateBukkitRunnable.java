@@ -142,7 +142,7 @@ public final class UpdateBukkitRunnable extends BukkitRunnable implements Consum
 
         ServerGamePacketListenerImpl connection = ((CraftPlayer) player).getHandle().connection;
 
-        if (connection == null || connection.processedDisconnect) {
+        if (connection == null || connection.isDisconnected()) {
             return;
         }
 

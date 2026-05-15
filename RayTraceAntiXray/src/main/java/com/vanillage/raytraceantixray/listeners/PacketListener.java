@@ -134,7 +134,7 @@ public final class PacketListener extends PacketListenerAbstract {
         }
 
         WrapperPlayServerUnloadChunk wrapper = new WrapperPlayServerUnloadChunk(event);
-        long chunkKey = ChunkPos.asLong(wrapper.getChunkX(), wrapper.getChunkZ());
+        long chunkKey = ChunkPos.pack(wrapper.getChunkX(), wrapper.getChunkZ());
 
         player.getScheduler().run(plugin, (ScheduledTask task) -> finishUnloadChunk(player, chunkKey), null);
     }
