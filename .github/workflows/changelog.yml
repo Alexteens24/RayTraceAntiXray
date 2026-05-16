@@ -1,0 +1,65 @@
+# Changelog without PRs: derive from git history.
+#
+# - workflow_dispatch: draft in job Summary + artifact CHANGELOG-draft.md
+# - push tag v*: create/update a GitHub *draft* release with the same body (you publish when ready)
+#
+# Tip: clearer entries if you use Conventional Commits (feat:, fix:, chore:) — optional.
+name: Changelog
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  draft:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build changelog body
+        id: log
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            CUR="${GITHUB_REF_NAME}"
+            FROM=$(git describe --tags --abbrev=0 "${CUR}^" 2>/dev/null || git rev-list --max-parents=0 HEAD | tail -1)
+          else
+            FROM=$(git describe --tags --abbrev=0 --match='v*' HEAD 2>/dev/null || git rev-list --max-parents=0 HEAD | tail -1)
+          fi
+          TO="${GITHUB_REF_NAME:-$(git rev-parse --short HEAD)}"
+          {
+            echo "## Changes (\`$FROM\` → \`$TO\`)"
+            echo ""
+            git log "$FROM"..HEAD --pretty=format:'- **%h** %s (%an)' --no-merges
+            echo ""
+          } > changelog-body.md
+          test -s changelog-body.md
+
+      - name: Upload draft (artifact)
+        uses: actions/upload-artifact@v4
+        with:
+          name: changelog-draft
+          path: changelog-body.md
+
+      - name: Append to job Summary
+        run: cat changelog-body.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Draft GitHub Release (tags only)
+        if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          generate_release_notes: false
+          body_path: changelog-body.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

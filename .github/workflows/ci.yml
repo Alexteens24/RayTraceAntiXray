@@ -1,0 +1,95 @@
+# Smart CI: one runner JDK (25) satisfies Paperclip for 26.1.x; older branches still
+# compile because build.gradle.kts pins a lower Java *toolchain* and Gradle auto-provisions
+# it via the Foojay resolver (settings.gradle.kts). No branch→JDK matrix to maintain.
+name: CI
+
+on:
+  push:
+    branches: ["26.1.2", "1.21.11", "feature/section-leap-dda"]
+    paths:
+      - "RayTraceAntiXray/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle.properties"
+      - "gradle/**"
+      - ".github/workflows/**"
+  pull_request:
+    branches: ["26.1.2", "1.21.11", "feature/section-leap-dda"]
+    paths:
+      - "RayTraceAntiXray/**"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle.properties"
+      - "gradle/**"
+      - ".github/workflows/**"
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # High enough for Paper 26.1 paperclip; Gradle on 25 can still fork toolchain 21 for 1.21.11.
+  CI_JAVA_VERSION: "25"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.CI_JAVA_VERSION }}
+
+      - uses: gradle/actions/wrapper-validation@v4
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build
+        run: ./gradlew build --no-daemon --stacktrace
+
+      - name: Prepare artifact (plugin JAR only)
+        if: success() && github.event_name == 'push'
+        run: |
+          mkdir -p ci-out
+          shopt -s nullglob
+          for f in build/libs/RayTraceAntiXray-*.jar; do
+            case "$f" in
+              *-sources.jar) ;;
+              *) cp "$f" ci-out/ ;;
+            esac
+          done
+          test "$(find ci-out -name '*.jar' | wc -l)" -ge 1
+
+      - name: Upload plugin JAR
+        if: success() && github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: RayTraceAntiXray-${{ github.ref_name }}-${{ github.sha }}
+          path: ci-out/*.jar
+          if-no-files-found: error
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## CI"
+            echo "| | |"
+            echo "|--|--|"
+            echo "| Event | ${{ github.event_name }} |"
+            echo "| Ref | ${{ github.ref }} |"
+            echo "| Runner JDK | **${{ env.CI_JAVA_VERSION }}** (see workflow comment: toolchain + Foojay) |"
+            echo ""
+            echo "### Paper / Minecraft (from gradle.properties)"
+            echo '```'
+            grep -E '^(paperVersion|minecraftVersion)=' gradle.properties 2>/dev/null || echo "(no matching keys)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
