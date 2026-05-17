@@ -69,11 +69,12 @@ jobs:
           done
           test "$(find ci-out -name '*.jar' | wc -l)" -ge 1
 
+      # github.ref_name can contain '/' (e.g. feature/foo); artifact names must not.
       - name: Upload plugin JAR
         if: success() && github.event_name == 'push'
         uses: actions/upload-artifact@v4
         with:
-          name: RayTraceAntiXray-${{ github.ref_name }}-${{ github.sha }}
+          name: RayTraceAntiXray-${{ replace(github.ref_name, '/', '-') }}-${{ github.sha }}
           path: ci-out/*.jar
           if-no-files-found: error
 
