@@ -8,15 +8,15 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
 
-import com.vanillage.raytraceantixray.RayTraceAntiXray;
+import com.vanillage.raytraceantixray.RayTraceAntiXrayCommandTarget;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 
 public final class RayTraceAntiXrayTabExecutor implements TabExecutor {
-    private final RayTraceAntiXray plugin;
+    private final RayTraceAntiXrayCommandTarget plugin;
 
-    public RayTraceAntiXrayTabExecutor(RayTraceAntiXray plugin) {
+    public RayTraceAntiXrayTabExecutor(RayTraceAntiXrayCommandTarget plugin) {
         this.plugin = plugin;
     }
 
@@ -33,6 +33,10 @@ public final class RayTraceAntiXrayTabExecutor implements TabExecutor {
                 if (sender.hasPermission("raytraceantixray.command.raytraceantixray.timings") && "timings".startsWith(args[0].toLowerCase(Locale.ROOT))) {
                     completions.add("timings");
                 }
+
+                if (sender.hasPermission("raytraceantixray.command.raytraceantixray.reload") && "reload".startsWith(args[0].toLowerCase(Locale.ROOT))) {
+                    completions.add("reload");
+                }
             } else if (args[0].toLowerCase(Locale.ROOT).equals("timings")) {
                 if (sender.hasPermission("raytraceantixray.command.raytraceantixray.timings")) {
                     if (args.length == 2) {
@@ -45,6 +49,8 @@ public final class RayTraceAntiXrayTabExecutor implements TabExecutor {
                         }
                     }
                 }
+            } else if (args[0].toLowerCase(Locale.ROOT).equals("reload")) {
+                // No sub-arguments.
             }
         }
 
@@ -56,6 +62,17 @@ public final class RayTraceAntiXrayTabExecutor implements TabExecutor {
         if (command.getName().toLowerCase(Locale.ROOT).equals("raytraceantixray")) {
             if (args.length == 0) {
 
+            } else if (args[0].toLowerCase(Locale.ROOT).equals("reload")) {
+                if (sender.hasPermission("raytraceantixray.command.raytraceantixray.reload")) {
+                    if (args.length == 1) {
+                        plugin.reloadPluginConfiguration();
+                        sender.sendMessage(Component.text("RayTraceAntiXray configuration reloaded."));
+                        return true;
+                    }
+                } else {
+                    sender.sendMessage(Component.text("You don't have permissions.", NamedTextColor.RED));
+                    return true;
+                }
             } else if (args[0].toLowerCase(Locale.ROOT).equals("timings")) {
                 if (sender.hasPermission("raytraceantixray.command.raytraceantixray.timings")) {
                     if (args.length == 1) {

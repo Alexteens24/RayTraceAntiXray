@@ -10,6 +10,6 @@ folia-supported: true
 commands:
   raytraceantixray:
     description: All commands for RayTraceAntiXray.
-    usage: '§cUsage: /<command> timings (on|off)'
+    usage: '§cUsage: /<command> reload | timings (on|off)'
     permission: raytraceantixray.command.raytraceantixray
     permission-message: §cYou don't have permissions.

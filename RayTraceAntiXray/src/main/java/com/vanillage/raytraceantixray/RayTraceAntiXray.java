@@ -47,7 +47,7 @@ import net.minecraft.world.phys.Vec3;
 
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 
-public final class RayTraceAntiXray extends JavaPlugin {
+public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXrayCommandTarget {
     // private volatile Configuration configuration;
     private boolean folia = false;
     private volatile boolean running = false;
@@ -83,11 +83,7 @@ public final class RayTraceAntiXray extends JavaPlugin {
         }
 
         running = true;
-        // Async scheduler (Paper / Folia) drives a common ray-trace tick in wall-clock time; each tick submits work to the fixed ray-trace pool and waits for completion (invokeAll).
-        executorService = Executors.newFixedThreadPool(Math.max(config.getInt("settings.anti-xray.ray-trace-threads"), 1), new ThreadFactoryBuilder().setThreadFactory(Executors.defaultThreadFactory()).setNameFormat("RayTraceAntiXray ray trace thread %d").setDaemon(true).build());
-        long periodMs = Math.max(config.getLong("settings.anti-xray.ms-per-ray-trace-tick"), 1L);
-        rayTraceScheduledTask = Bukkit.getAsyncScheduler().runAtFixedRate(this, new RayTraceTimerTask(this), 0L, periodMs, TimeUnit.MILLISECONDS);
-        updateTicks = Math.max(config.getLong("settings.anti-xray.update-ticks"), 1L);
+        startRayTraceSchedulerFromConfig(config);
 
         // Block updates run per-player via PlayerListener + EntityScheduler (required on Folia/Canvas for world reads).
 
@@ -173,6 +169,62 @@ public final class RayTraceAntiXray extends JavaPlugin {
         return primary;
     }
 
+    /**
+     * Reloads {@code config.yml}, restarts the ray-trace pool and async tick, reapplies per-world chunk controllers,
+     * and re-registers online players so {@link com.vanillage.raytraceantixray.tasks.RayTraceCallable} uses the new settings.
+     * Must run on the primary server thread.
+     */
+    @Override
+    public void reloadPluginConfiguration() {
+        if (!Bukkit.isPrimaryThread()) {
+            throw new IllegalStateException("reloadPluginConfiguration must be called from the server thread");
+        }
+
+        reloadConfig();
+        FileConfiguration config = getConfig();
+        config.options().copyDefaults(true);
+
+        stopRayTraceSchedulerForReload();
+        startRayTraceSchedulerFromConfig(config);
+
+        for (World w : Bukkit.getWorlds()) {
+            WorldListener.handleLoad(this, w);
+        }
+
+        PlayerListener.unregisterAndReregisterAll(this);
+    }
+
+    private void startRayTraceSchedulerFromConfig(FileConfiguration config) {
+        executorService = Executors.newFixedThreadPool(Math.max(config.getInt("settings.anti-xray.ray-trace-threads"), 1), new ThreadFactoryBuilder().setThreadFactory(Executors.defaultThreadFactory()).setNameFormat("RayTraceAntiXray ray trace thread %d").setDaemon(true).build());
+        long periodMs = Math.max(config.getLong("settings.anti-xray.ms-per-ray-trace-tick"), 1L);
+        rayTraceScheduledTask = Bukkit.getAsyncScheduler().runAtFixedRate(this, new RayTraceTimerTask(this), 0L, periodMs, TimeUnit.MILLISECONDS);
+        updateTicks = Math.max(config.getLong("settings.anti-xray.update-ticks"), 1L);
+    }
+
+    private void stopRayTraceSchedulerForReload() {
+        if (rayTraceScheduledTask != null) {
+            rayTraceScheduledTask.cancel();
+            rayTraceScheduledTask = null;
+        }
+
+        if (executorService != null) {
+            executorService.shutdown();
+
+            try {
+                if (!executorService.awaitTermination(5L, TimeUnit.SECONDS)) {
+                    executorService.shutdownNow();
+
+                    if (!executorService.awaitTermination(1L, TimeUnit.SECONDS)) {
+                        getLogger().warning("Ray trace thread pool did not terminate cleanly after reload");
+                    }
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                executorService.shutdownNow();
+            }
+        }
+    }
+
     public boolean isFolia() {
         return folia;
     }
@@ -185,6 +237,7 @@ public final class RayTraceAntiXray extends JavaPlugin {
         return timingsEnabled;
     }
 
+    @Override
     public void setTimingsEnabled(boolean timingsEnabled) {
         this.timingsEnabled = timingsEnabled;
     }
@@ -254,9 +307,8 @@ public final class RayTraceAntiXray extends JavaPlugin {
             if (validatePlayer(player)) {
                 Logger logger = getLogger();
                 logger.warning("Missing player data detected for player " + player.getName() + " in method " + methodName);
-                logger.warning("Please note that reloading this plugin isn't yet supported");
+                logger.warning("If you recently reloaded config, try reconnecting players or restarting the server");
                 logger.warning("Also make sure you are using the correct plugin version for your Minecraft version");
-                logger.warning("Please restart your server");
             }
 
             return false;

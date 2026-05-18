@@ -38,6 +38,25 @@ public final class PlayerListener implements Listener {
     }
 
     /**
+     * Clears player state and pending chunk queues, then registers every online player again (e.g. after config reload).
+     */
+    public static void unregisterAndReregisterAll(RayTraceAntiXray plugin) {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            UUID id = player.getUniqueId();
+            PlayerData data = plugin.getPlayerData().get(id);
+
+            if (data != null && data.getBlockUpdateTask() != null) {
+                data.getBlockUpdateTask().cancel();
+            }
+
+            plugin.clearPendingChunkBlocksFor(id);
+            plugin.getPlayerData().remove(id);
+        }
+
+        registerExistingPlayers(plugin);
+    }
+
+    /**
      * Registers ray-trace data and the repeating block-update task on this player's region scheduler
      * (required on Folia/Canvas so {@link net.minecraft.world.level.Level#getBlockState} has region context).
      */

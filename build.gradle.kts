@@ -28,6 +28,13 @@ repositories {
 dependencies {
     paperweight.paperDevBundle(paperVersion)
     compileOnly("com.github.retrooper:packetevents-spigot:2.12.1")
+
+    testImplementation(platform("org.junit:junit-bom:5.11.4"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testImplementation("org.mockito:mockito-junit-jupiter:5.14.2")
+    testImplementation(paperweight.paperDevBundle(paperVersion))
+    testImplementation(sourceSets.main.get().output.classesDirs)
 }
 
 // Paper 1.20.5+ runtime is Mojang-mapped; ship a Mojang-mapped plugin JAR (no reobf to Spigot).
@@ -38,12 +45,25 @@ sourceSets {
         java.setSrcDirs(listOf("RayTraceAntiXray/src/main/java"))
         resources.setSrcDirs(listOf("RayTraceAntiXray/src/main/resources"))
     }
+    named("test") {
+        java.setSrcDirs(listOf("RayTraceAntiXray/src/test/java"))
+        resources.setSrcDirs(listOf("RayTraceAntiXray/src/test/resources"))
+    }
 }
 
 tasks {
     compileJava {
         options.encoding = "UTF-8"
         options.release.set(25)
+    }
+
+    compileTestJava {
+        options.encoding = "UTF-8"
+        options.release.set(25)
+    }
+
+    test {
+        useJUnitPlatform()
     }
 
     processResources {

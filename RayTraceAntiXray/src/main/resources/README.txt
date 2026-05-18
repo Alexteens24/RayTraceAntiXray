@@ -2,6 +2,13 @@ Commands and required permissions:
 All commands require at least the permission 'raytraceantixray.command.raytraceantixray'.
 
 Command:
+/raytraceantixray reload
+Description:
+Reloads config.yml and reapplies ray-trace scheduling, world controllers, and online player tasks.
+Permissions:
+raytraceantixray.command.raytraceantixray.reload
+
+Command:
 /raytraceantixray timings on
 Description:
 Turns on timings.
