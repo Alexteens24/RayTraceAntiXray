@@ -56,7 +56,11 @@ jobs:
       - name: Build
         run: ./gradlew build --no-daemon --stacktrace
 
+      # Artifact names cannot contain / " : < > | * ? CR LF — see:
+      # https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts
+      # Use default env GITHUB_REF_NAME (short ref) and sanitize in the shell; avoid brittle ${{ replace(...) }} literals.
       - name: Prepare artifact (plugin JAR only)
+        id: plugin-jar
         if: success() && github.event_name == 'push'
         run: |
           mkdir -p ci-out
@@ -68,13 +72,14 @@ jobs:
             esac
           done
           test "$(find ci-out -name '*.jar' | wc -l)" -ge 1
+          safe_ref="${GITHUB_REF_NAME//\//-}"
+          echo "artifact_name=RayTraceAntiXray-${safe_ref}-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
 
-      # github.ref_name can contain '/' (e.g. feature/foo); artifact names must not.
       - name: Upload plugin JAR
         if: success() && github.event_name == 'push'
         uses: actions/upload-artifact@v4
         with:
-          name: RayTraceAntiXray-${{ replace(github.ref_name, '/', '-') }}-${{ github.sha }}
+          name: ${{ steps.plugin-jar.outputs.artifact_name }}
           path: ci-out/*.jar
           if-no-files-found: error
 
