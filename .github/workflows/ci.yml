@@ -5,7 +5,7 @@ name: CI
 
 on:
   push:
-    branches: ["26.1.2", "1.21.11", "feature/section-leap-dda"]
+    branches: ["26.1.2", "1.21.11"]
     paths:
       - "RayTraceAntiXray/**"
       - "build.gradle.kts"
@@ -14,7 +14,7 @@ on:
       - "gradle/**"
       - ".github/workflows/**"
   pull_request:
-    branches: ["26.1.2", "1.21.11", "feature/section-leap-dda"]
+    branches: ["26.1.2", "1.21.11"]
     paths:
       - "RayTraceAntiXray/**"
       - "build.gradle.kts"
