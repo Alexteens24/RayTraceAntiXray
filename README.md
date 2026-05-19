@@ -1,61 +1,194 @@
 # RayTraceAntiXray
-Paper plugin for server-side async multithreaded ray tracing to hide ores that are exposed to air using Paper Anti-Xray engine-mode 1.
 
-Paper Anti-Xray can't hide ores that are exposed to air in caves for example (see picture below). This plugin is an add-on for Paper Anti-Xray to hide those ores too, using ray tracing to calculate whether or not those ores are visible to players. This plugin can also fully hide block entities such as chests since Minecraft 1.20.6.
+Server-side ray-tracing extension for [Paper Anti-Xray](https://docs.papermc.io/paper/anti-xray/) **engine-mode 1** (`HIDE`). The plugin evaluates line-of-sight from each player to ore blocks that are **exposed to air**—a class Paper does not obfuscate—and updates per-player chunk payloads accordingly.
 
-![RayTraceAntiXray](https://user-images.githubusercontent.com/18699205/185815590-4b2efce6-5a26-4579-b079-e9958a454fd0.gif)
+![Demonstration: exposed ores obfuscated until line-of-sight is established](https://user-images.githubusercontent.com/18699205/185815590-4b2efce6-5a26-4579-b079-e9958a454fd0.gif)
 
-## What's changed in this fork
+---
 
-This repository is a fork of **[stonar96/RayTraceAntiXray](https://github.com/stonar96/RayTraceAntiXray)**. Upstream ships a **Maven** layout, depends on **ProtocolLib** for packet integration, and uses a **`java.util.Timer`**-style driver for ray-trace ticks in its current tree. This fork keeps the same overall goal (Paper Anti-Xray **engine-mode 1** + server-side ray tracing) but changes how the project is built and how it talks to the server runtime. Day-to-day work targets **`26.1.2`** (Paper 26.x) and **`1.21.11`** (Paper 1.21.11); this repo does **not** use a `main` branch.
+## 1. Background
 
-**Highlights**
+Paper Anti-Xray in **engine-mode 1** replaces hidden blocks (e.g. ores) with decoy blocks (stone, deepslate, etc.) inside chunk packets. That mechanism targets blocks **not** adjacent to air. Ores on cave walls or in open pockets remain visible in the raw chunk data, which defeats the purpose of anti-xray for those positions.
 
-* **Build**: **Gradle** + Paperweight (`build.gradle.kts`); Java **21** on **`1.21.11`** (and feature branches on that line), Java **25** on **`26.1.2`**; Mojang-mapped plugin JAR (`MOJANG_PRODUCTION`).
-* **Packets**: **PacketEvents** instead of ProtocolLib (see `plugin.yml`); no embedded duplex Netty handler for chunk lifecycle—install the PacketEvents plugin on the server.
-* **Folia / threading**: Ray-trace work is driven from **Paper’s async scheduler** (`runAtFixedRate`); Folia is detected at runtime and sensitive paths defer to **region/player schedulers** where required.
-* **Client updates**: `UpdateBukkitRunnable` **batches** block-update packets and uses a **single flush** per batch, with checks so writes stay on the expected channel.
-* **World hookup**: Worlds that already exist when the plugin enables still get a controller (not only `WorldInitEvent`).
-* **Reliability & ops**: Clearer **shutdown** and **player disconnect** handling, improved **logging** around ray-trace pool failures, **cache initialization** tweaks in the hot ray path, and **`/raytraceantixray reload`** to apply `config.yml` without a full server restart.
-* **Ray traversal**: Per-world **`section-leap`** in `config.yml` skips voxel steps across **air-only 16³ chunk sections** (`LevelChunkSection#hasOnlyAir()`) before block DDA; set `false` to force legacy per-voxel traversal (useful in profilers).
+RayTraceAntiXray closes this gap by:
 
-**Paper / Minecraft version branches**
+1. Identifying trace candidates when a chunk is prepared for a player.
+2. Obfuscating those positions in the outgoing packet (same decoy blocks as Paper).
+3. Running asynchronous visibility tests from the player’s eye (and optionally third-person origins).
+4. Sending **block-update** packets to reveal only blocks with an unobstructed line of sight.
 
-* **`1.21.11`** — tracks the **Minecraft 1.21.11** line (Paper `1.21.11-*`, Java **21**, `api-version: 1.21.11`).
-* **`26.1.2`** — targets **Paper 26.1.2** / the newer **26.x** API (`api-version: '26.1.2'`), **Java 25** toolchain, and small **NMS renames** in the plugin (e.g. `ChunkPos.pack` vs `asLong`, `ChunkPos` coordinate accessors, `ServerGamePacketListenerImpl.isDisconnected()`). Build defaults live in `gradle.properties` on that branch.
+Block entities (e.g. chests) can be fully hidden on supported versions; see Paper and plugin release notes.
 
-See **[FORK.md — Version branches](FORK.md#version-branches)** for a concise diff-style list.
+---
 
-For a longer, file-by-file rationale (including notes that mirror upstream’s LICENSE expectations), see **[FORK.md](FORK.md)**.
+## 2. Method
 
-## How to install
-* Download and install [Paper](https://papermc.io/downloads/paper) **26.1.2** (match `paperVersion` / `minecraftVersion` in `gradle.properties`; use **JDK 25** to build this branch). Follow Paper’s release notes for Folia support on this generation.
-* Enable [Paper Anti-Xray](https://docs.papermc.io/paper/anti-xray/) using `engine-mode: 1`.
-* Download and install [PacketEvents](https://modrinth.com/plugin/packetevents) (Spigot/Paper build).
-* Download and install [RayTraceAntiXray](https://builtbybit.com/resources/raytraceantixray.24914/). (For older Minecraft versions, browse the update history.)
-* Configure RayTraceAntiXray by editing the file plugins/RayTraceAntiXray/[config.yml](RayTraceAntiXray/src/main/resources/config.yml).
-* See also: [Recommended settings](https://gist.github.com/stonar96/69ca0311392188b7ac2ece226286147f).
-* **Restart the server** after the first install or after replacing the plugin JAR. Do **not** use Bukkit’s `/reload`, PlugMan-style plugin managers, or enable/disable the plugin jar on a running server — that leaves chunk controllers and player state inconsistent.
+### 2.1 Per-chunk candidate set
 
-## Commands
+When Paper’s `ChunkPacketBlockController` builds a chunk packet, the plugin records world positions of configured block types that are **exposed to air**, subject to:
 
-After the plugin is enabled, you can change most RayTraceAntiXray settings without a full restart:
+- Paper’s `hidden-blocks` / height limits (when `ray-trace-blocks` is empty).
+- `max-ray-trace-block-count-per-chunk` (bottom-up cap per chunk).
 
-| Command | Permission | Description |
-|---------|------------|-------------|
-| `/raytraceantixray reload` | `raytraceantixray.command.raytraceantixray.reload` | Reloads `config.yml`, restarts the ray-trace thread pool and async tick, reapplies per-world chunk controllers, and re-registers online players. |
-| `/raytraceantixray timings on` | `raytraceantixray.command.raytraceantixray.timings.on` | Enables internal timings (also requires `…timings`). |
-| `/raytraceantixray timings off` | `raytraceantixray.command.raytraceantixray.timings.off` | Disables timings (also requires `…timings`). |
+This set is fixed for that chunk send until the chunk is sent again; placements and breaks are not reflected until then.
 
-All subcommands require `raytraceantixray.command.raytraceantixray`. Full permission names are listed in `plugins/RayTraceAntiXray/README.txt` (copied from the jar on first run).
+### 2.2 Initial obfuscation
 
-**After `/raytraceantixray reload`:** players who see missing or stuck obfuscation should reconnect. Chunks already sent to clients are not rebuilt until those chunks are sent again (same as upstream — block lists are fixed when a chunk is first sent).
+Candidates are written into the palette as decoy states before the client receives the chunk. The player initially sees stone (or dimension-appropriate filler), not the true ore.
 
-## Known issues
-* Depending on the number of players and config settings, this plugin can be resource intensive. I only recommend using it if you have "unused" CPU threads available on your server in order to minimize the impact on the main thread.
-* The culling algorithm is intentionally not 100% accurate for performance and functional reasons. When in doubt, it is assumed that a block is visible. Thus hidden blocks tend to be revealed rather earlier than late, provided that the server isn't overloaded and doesn't lag. Usually, however, this cannot be abused.
-* Config reload (`/raytraceantixray reload`) does not replace a server restart when you change the plugin binary, Paper Anti-Xray settings, or PacketEvents — restart for those.
-## Demo
-![RayTraceAntiXray](https://user-images.githubusercontent.com/18699205/112784731-aed75e00-9052-11eb-92d6-b0dd4af79290.gif)
-## License
-The [LICENSE](LICENSE) file applies to the **source code** of this project. Please don't (re)distribute **compiled binary versions** of this project or derivative works that are directly usable as intended by this project. Shading or using this project as a library for other purposes is permitted.
+### 2.3 Visibility test (ray casting)
+
+On a configurable schedule, a thread pool traces rays from each online player toward queued blocks within `ray-trace-distance`:
+
+| Stage | Description |
+|--------|-------------|
+| **Frustum culling** | Optional early reject using view direction. |
+| **Section leap** | If `section-leap: true` and `LevelChunkSection#hasOnlyAir()` holds for the current 16³ section, skip voxels in that section via analytic section exit (`SectionRayMath`) and resume DDA at the boundary. |
+| **Voxel traversal** | Amanatides–Woo DDA (`BlockIterator`) steps along the ray. |
+| **Occlusion** | Solid blocks and adjacent-face checks (`BlockOcclusionCulling`) determine obstruction. |
+| **Conservative bias** | Ambiguous or unloaded geometry is treated as **occluding**; when culling is uncertain, visibility errs toward **revealed** rather than falsely hidden. |
+
+Results are queued per player and flushed as batched `ClientboundBlockUpdatePacket` (single Netty flush per batch where possible).
+
+### 2.4 Rehide (optional)
+
+With `rehide-blocks: true`, blocks that leave the visible set (subject to `rehide-distance`) can be obfuscated again without waiting for a full chunk resend.
+
+---
+
+## 3. Architecture (this fork)
+
+Fork of [stonar96/RayTraceAntiXray](https://github.com/stonar96/RayTraceAntiXray). Operational differences are documented in [FORK.md](FORK.md).
+
+```mermaid
+flowchart LR
+  subgraph server["Server thread / region schedulers"]
+    W[WorldListener — controller install]
+    P[PlayerListener — eye pose, update tick]
+    PE[PacketEvents — chunk lifecycle sync]
+  end
+  subgraph async["Async ray-trace pool"]
+    T[RayTraceTimerTask]
+    R[RayTraceCallable — DDA + section leap]
+  end
+  subgraph client["Client"]
+    C[Chunk packet then block updates]
+  end
+  W --> C
+  P --> T
+  T --> R
+  R --> P
+  PE --> P
+  P --> C
+```
+
+| Component | Role |
+|-----------|------|
+| `ChunkPacketBlockControllerAntiXray` | Hooks Paper chunk obfuscation; enqueues per-player block lists. |
+| `PacketListener` | Aligns player state with outgoing chunk / unload / respawn packets (PacketEvents). |
+| `RayTraceTimerTask` | Paper async scheduler tick; `invokeAll` per player on the ray pool. |
+| `UpdateBukkitRunnable` | Drains visibility results; batches block updates on the player scheduler (Folia-safe). |
+
+**Runtime dependencies:** Paper (Folia-capable builds where applicable), [PacketEvents](https://modrinth.com/plugin/packetevents), Paper Anti-Xray **engine-mode 1**.
+
+---
+
+## 4. Version branches
+
+There is no `main` branch. Build the branch that matches your server’s Paper generation:
+
+| Branch | Minecraft / Paper | Java (toolchain) | `api-version` |
+|--------|-------------------|------------------|---------------|
+| [`1.21.11`](tree/1.21.11) | 1.21.11 | 21 | `1.21.11` |
+| [`26.1.2`](tree/26.1.2) | 26.1.2 (26.x) | 25 | `26.1.2` |
+
+NMS differences between branches are mechanical (e.g. `ChunkPos.asLong` vs `ChunkPos.pack`); see [FORK.md § Version branches](FORK.md#version-branches).
+
+---
+
+## 5. Installation
+
+1. Install [Paper](https://papermc.io/downloads/paper) matching your chosen branch (`gradle.properties` on that branch).
+2. Enable Paper Anti-Xray with **`engine-mode: 1`** ([documentation](https://docs.papermc.io/paper/anti-xray/)).
+3. Install **PacketEvents** (Spigot/Paper build).
+4. Install **RayTraceAntiXray** ([release](https://builtbybit.com/resources/raytraceantixray.24914/) or build from source on the correct branch).
+5. Edit `plugins/RayTraceAntiXray/config.yml` ([defaults](RayTraceAntiXray/src/main/resources/config.yml)).
+6. **Restart the server** after first install or JAR replacement.
+
+**Do not** use Bukkit `/reload`, PlugMan-style hot plug, or enable/disable the JAR on a running server; chunk controllers and per-player state will desynchronize.
+
+Recommended tuning reference: [stonar96’s settings gist](https://gist.github.com/stonar96/69ca0311392188b7ac2ece226286147f).
+
+---
+
+## 6. Configuration
+
+Global scheduler settings (`settings.anti-xray`):
+
+| Key | Meaning |
+|-----|---------|
+| `ray-trace-threads` | Fixed thread pool size for visibility work. |
+| `ms-per-ray-trace-tick` | Async scheduler period between ray batches. |
+| `update-ticks` | Player scheduler period for sending block updates. |
+
+Per-world (`world-settings.<world>.anti-xray`, inherits `default`):
+
+| Key | Meaning |
+|-----|---------|
+| `ray-trace` | Enable plugin logic for this world (requires Paper AX + engine-mode 1). |
+| `ray-trace-distance` | Max distance (blocks) for visibility tests. |
+| `ray-trace-third-person` | Additional rays for third-person camera origins (costly). |
+| `section-leap` | Skip air-only 16³ sections before DDA (`false` = legacy traversal). |
+| `rehide-blocks` / `rehide-distance` | Dynamic re-obfuscation when LOS is lost. |
+| `max-ray-trace-block-count-per-chunk` | Cap on traced positions per chunk send. |
+| `ray-trace-blocks` | Block list; empty = Paper `hidden-blocks`. |
+
+---
+
+## 7. Commands
+
+Requires `raytraceantixray.command.raytraceantixray`. Full permission tree: `plugins/RayTraceAntiXray/README.txt` (generated on first run).
+
+| Command | Permission suffix | Effect |
+|---------|-------------------|--------|
+| `/raytraceantixray reload` | `.reload` | Reload `config.yml`; restart ray pool and tick; reinstall world controllers; re-register players. |
+| `/raytraceantixray timings on\|off` | `.timings.on` / `.timings.off` | Log per-tick ray batch duration to console. |
+
+**Reload limits:** Does not replace a restart after changing the plugin binary, Paper Anti-Xray, or PacketEvents. Players with inconsistent obfuscation should reconnect. Chunk block lists are not rebuilt until chunks are sent again.
+
+---
+
+## 8. Development
+
+```bash
+# Unit tests (excludes @Tag("bench"))
+./gradlew test
+
+# Section-leap vs pure DDA micro-benchmark (stdout table)
+./gradlew bench --rerun-tasks
+```
+
+Build: `./gradlew build` on the branch that matches your `paperVersion` in `gradle.properties`.
+
+---
+
+## 9. Limitations
+
+- **CPU cost** scales with player count, `ray-trace-threads`, blocks per chunk, distance, and third-person mode. Dedicated spare cores are recommended so the main thread stays responsive.
+- **Culling is approximate** by design; conservative visibility reduces false hides at the cost of occasional early reveals under load.
+- **Static per-send block lists** until chunk resend; mining or placing ores does not update the trace set immediately.
+- **Section leap** depends on `hasOnlyAir()`; false negatives skip optimization; false positives would be unsafe and are avoided by conservative section queries on unloaded data.
+
+---
+
+## 10. Demonstration (historical)
+
+![Earlier demo footage](https://user-images.githubusercontent.com/18699205/112784731-aed75e00-9052-11eb-92d6-b0dd4af79290.gif)
+
+---
+
+## 11. License
+
+Source is governed by [LICENSE](LICENSE). Redistribution of **compiled plugin JARs** intended for direct server use as RayTraceAntiXray is **not** permitted. Use as a library or shaded dependency for other projects is allowed.
+
+Implementation and fork maintenance notes: [FORK.md](FORK.md).
