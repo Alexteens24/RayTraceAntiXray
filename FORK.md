@@ -83,6 +83,20 @@ Check out the branch that matches your server’s Paper generation before buildi
 
 ---
 
+## Section leap (air-only section skipping)
+
+When **`section-leap: true`** (default per world in `config.yml`):
+
+1. During DDA in **`BlockOcclusionCulling`**, if **`BlockOcclusionGetter#sectionHasOnlyAir`** is true for the current voxel’s 16³ section, **`SectionRayMath.sectionExitParameter`** computes the ray exit of that section.
+2. **`BlockIterator#reseedAfterSectionLeap`** continues DDA from just inside that exit instead of visiting every air block in the section.
+3. **`RayTraceCallable`** implements **`sectionHasOnlyAir`** via **`LevelChunkSection#hasOnlyAir()`** on loaded chunks only; unloaded or missing sections return **`false`** (conservative — no leap).
+
+Set **`section-leap: false`** to force legacy per-voxel traversal (profiling / A-B tests). Unit tests in **`SectionRayMathTest`** and **`SectionLeapTraversalTest`** assert leap and legacy paths agree on mock getters.
+
+Micro-benchmark (DDA only vs section-leap, prints a table): **`./gradlew bench --rerun-tasks`**. Normal **`./gradlew test`** excludes `@Tag("bench")` tests.
+
+---
+
 ## Config reload (`/raytraceantixray reload`)
 
 This fork supports reloading **`config.yml` at runtime** (upstream historically did not). **`RayTraceAntiXray.reloadPluginConfiguration()`** (main thread only):

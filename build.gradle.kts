@@ -63,7 +63,23 @@ tasks {
     }
 
     test {
-        useJUnitPlatform()
+        useJUnitPlatform {
+            excludeTags("bench")
+        }
+    }
+
+    register<Test>("bench") {
+        group = "verification"
+        description = "Section-leap vs pure DDA micro-benchmark (prints timing table to stdout)"
+        testClassesDirs = sourceSets["test"].output.classesDirs
+        classpath = sourceSets["test"].runtimeClasspath
+        useJUnitPlatform {
+            includeTags("bench")
+        }
+        testLogging {
+            showStandardStreams = true
+            events("passed")
+        }
     }
 
     processResources {

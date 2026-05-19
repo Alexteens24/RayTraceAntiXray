@@ -116,6 +116,30 @@ public final class BlockIterator implements Iterator<int[]> {
         return this;
     }
 
+    /**
+     * Reseeds traversal so the next {@link #calculateNext()} steps from the last voxel still inside
+     * a leapt section (just before {@code sectionExitT}) toward the next section along the ray.
+     * The ray is {@code origin + t * dir} for {@code t} in {@code [0, totalDistance]} with unit {@code dir}.
+     */
+    public void reseedAfterSectionLeap(double originX, double originY, double originZ, double dirX, double dirY, double dirZ, double totalDistance, double sectionExitT) {
+        double inside = 1e-4;
+        double tInside = Math.max(0., sectionExitT - inside);
+        double sx = originX + dirX * tInside;
+        double sy = originY + dirY * tInside;
+        double sz = originZ + dirZ * tInside;
+        int bx = floor(sx);
+        int by = floor(sy);
+        int bz = floor(sz);
+        double remaining = totalDistance - tInside;
+
+        if (remaining <= 1e-6) {
+            next = null;
+            return;
+        }
+
+        initializeNormalized(bx, by, bz, sx, sy, sz, dirX, dirY, dirZ, remaining);
+    }
+
     public int[] calculateNext() {
         if (tMaxX < tMaxY) {
             if (tMaxZ < tMaxX) {

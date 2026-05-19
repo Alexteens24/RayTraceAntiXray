@@ -64,6 +64,10 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
     public final double rayTraceDistance;
     public final boolean rehideBlocks;
     public final double rehideDistance;
+    /**
+     * When {@code true}, ray traversal may skip air-only chunk sections ({@code LevelChunkSection#hasOnlyAir()}).
+     */
+    public final boolean sectionLeap;
     private final int maxRayTraceBlockCountPerChunk;
     private final BlockState[] presetBlockStates;
     private final BlockState[] presetBlockStatesFull;
@@ -88,7 +92,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
      */
     private static final ThreadLocal<ServerPlayer> ANTIXRAY_CHUNK_SEND_TARGET = new ThreadLocal<>();
 
-    public ChunkPacketBlockControllerAntiXray(RayTraceAntiXray plugin, boolean rayTraceThirdPerson, double rayTraceDistance, boolean rehideBlocks, double rehideDistance, int maxRayTraceBlockCountPerChunk, Iterable<? extends String> toTrace, Level level, Executor executor) {
+    public ChunkPacketBlockControllerAntiXray(RayTraceAntiXray plugin, boolean rayTraceThirdPerson, double rayTraceDistance, boolean rehideBlocks, double rehideDistance, boolean sectionLeap, int maxRayTraceBlockCountPerChunk, Iterable<? extends String> toTrace, Level level, Executor executor) {
         this.plugin = plugin;
         this.executor = executor;
         WorldConfiguration.Anticheat.AntiXray paperWorldConfig = level.paperConfig().anticheat.antiXray;
@@ -100,6 +104,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
         this.rayTraceDistance = rayTraceDistance;
         this.rehideBlocks = rehideBlocks;
         this.rehideDistance = rehideDistance;
+        this.sectionLeap = sectionLeap;
         this.maxRayTraceBlockCountPerChunk = maxRayTraceBlockCountPerChunk;
         List<Block> toObfuscate;
 

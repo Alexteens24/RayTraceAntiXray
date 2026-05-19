@@ -17,7 +17,7 @@ This repository is a fork of **[stonar96/RayTraceAntiXray](https://github.com/st
 * **Client updates**: `UpdateBukkitRunnable` **batches** block-update packets and uses a **single flush** per batch, with checks so writes stay on the expected channel.
 * **World hookup**: Worlds that already exist when the plugin enables still get a controller (not only `WorldInitEvent`).
 * **Reliability & ops**: Clearer **shutdown** and **player disconnect** handling, improved **logging** around ray-trace pool failures, **cache initialization** tweaks in the hot ray path, and **`/raytraceantixray reload`** to apply `config.yml` without a full server restart.
-* **Ray traversal (optional)**: Branch **`feature/section-leap-dda`** adds per-world **`section-leap`** in `config.yml` to skip voxel steps across **air-only 16³ chunk sections** before block DDA; set `false` to compare against pure DDA in profilers.
+* **Ray traversal**: Per-world **`section-leap`** in `config.yml` skips voxel steps across **air-only 16³ chunk sections** (`LevelChunkSection#hasOnlyAir()`) before block DDA; set `false` to force legacy per-voxel traversal (useful in profilers).
 
 **Paper / Minecraft version branches**
 

@@ -24,11 +24,20 @@ public final class BlockOcclusionCulling {
     private final BlockIteratorFactory blockIteratorFactory;
     private final BlockOcclusionGetter blockOcclusionGetter;
     private final boolean frustumCullingEnabled;
+    private final boolean sectionLeapEnabled;
 
     public BlockOcclusionCulling(BlockIteratorFactory blockIteratorFactory, BlockOcclusionGetter blockOcclusionGetter, boolean frustumCullingEnabled) {
+        this(blockIteratorFactory, blockOcclusionGetter, frustumCullingEnabled, true);
+    }
+
+    /**
+     * @param sectionLeapEnabled when {@code false}, voxel traversal never uses section skipping (legacy path).
+     */
+    public BlockOcclusionCulling(BlockIteratorFactory blockIteratorFactory, BlockOcclusionGetter blockOcclusionGetter, boolean frustumCullingEnabled, boolean sectionLeapEnabled) {
         this.blockIteratorFactory = blockIteratorFactory;
         this.blockOcclusionGetter = blockOcclusionGetter;
         this.frustumCullingEnabled = frustumCullingEnabled;
+        this.sectionLeapEnabled = sectionLeapEnabled;
     }
 
     public boolean isVisible(int x, int y, int z, double vectorX, double vectorY, double vectorZ, double directionX, double directionY, double directionZ) {
@@ -48,13 +57,29 @@ public final class BlockOcclusionCulling {
 
         double distance = Math.sqrt(distanceSquared);
         double fixedDistance = distance == 0. ? Double.NaN : distance;
-        BlockIterator blockIterator = blockIteratorFactory.getBlockIterator(x, y, z, centerX, centerY, centerZ, differenceX / fixedDistance, differenceY / fixedDistance, differenceZ / fixedDistance, distance);
+        double dirX = differenceX / fixedDistance;
+        double dirY = differenceY / fixedDistance;
+        double dirZ = differenceZ / fixedDistance;
+        BlockIterator blockIterator = blockIteratorFactory.getBlockIterator(x, y, z, centerX, centerY, centerZ, dirX, dirY, dirZ, distance);
         int[] ray;
 
         while ((ray = blockIterator.calculateNext()) != null) {
             int rayX = ray[0];
             int rayY = ray[1];
             int rayZ = ray[2];
+
+            if (sectionLeapEnabled && blockOcclusionGetter.sectionHasOnlyAir(rayX, rayY, rayZ)) {
+                double sectionExitT = SectionRayMath.sectionExitParameter(centerX, centerY, centerZ, dirX, dirY, dirZ, rayX, rayY, rayZ);
+
+                if (Double.isFinite(sectionExitT)) {
+                    if (sectionExitT >= distance - 1e-5) {
+                        return true;
+                    }
+
+                    blockIterator.reseedAfterSectionLeap(centerX, centerY, centerZ, dirX, dirY, dirZ, distance, sectionExitT);
+                    continue;
+                }
+            }
 
             if (blockOcclusionGetter.isOccludingRay(rayX, rayY, rayZ) && checkNearbyBlocks(x, y, z, ray, rayX, rayY, rayZ, differenceX, differenceY, differenceZ)) {
                 return false;
@@ -233,6 +258,14 @@ public final class BlockOcclusionCulling {
 
         default boolean isOccludingNearby(int x, int y, int z) {
             return isOccluding(x, y, z);
+        }
+
+        /**
+         * When {@code true}, the entire 16³ section containing {@code (bx, by, bz)} is treated as free space
+         * so traversal may jump to the next section along the ray (conservative: {@code false} by default).
+         */
+        default boolean sectionHasOnlyAir(int bx, int by, int bz) {
+            return false;
         }
     }
 }

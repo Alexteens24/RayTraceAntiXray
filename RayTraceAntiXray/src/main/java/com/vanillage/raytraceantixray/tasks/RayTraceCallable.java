@@ -212,6 +212,34 @@ public final class RayTraceCallable implements Callable<Void> {
             }
 
             @Override
+            public boolean sectionHasOnlyAir(int wx, int wy, int wz) {
+                int ix = wx >> 4;
+                int iz = wz >> 4;
+                int iSectionY = wy >> 4;
+                mutableLongWrapper.setValue(ChunkPos.pack(ix, iz));
+                ChunkBlocks chunkBlocks = chunks.get(mutableLongWrapper);
+
+                if (chunkBlocks == null) {
+                    return false;
+                }
+
+                LevelChunk ch = chunkBlocks.getChunk();
+
+                if (ch == null) {
+                    return false;
+                }
+
+                int minSectionY = ch.getMinSectionY();
+
+                if (iSectionY < minSectionY || iSectionY >= ch.getMaxSectionY()) {
+                    return false;
+                }
+
+                LevelChunkSection sec = ch.getSections()[iSectionY - minSectionY];
+                return sec != null && sec.hasOnlyAir();
+            }
+
+            @Override
             public void initializeCache(LevelChunk chunk, int chunkX, int sectionY, int chunkZ) {
                 this.chunk = chunk;
                 section = chunk.getSections()[sectionY - chunk.getMinSectionY()];
@@ -226,7 +254,7 @@ public final class RayTraceCallable implements Callable<Void> {
                 section = null;
             }
         };
-        blockOcclusionCulling = new BlockOcclusionCulling(new BlockIterator(0., 0., 0., 0., 0., 0.)::initializeNormalized, cachedSectionBlockOcclusionGetter, true);
+        blockOcclusionCulling = new BlockOcclusionCulling(new BlockIterator(0., 0., 0., 0., 0., 0.)::initializeNormalized, cachedSectionBlockOcclusionGetter, true, chunkPacketBlockControllerAntiXray.sectionLeap);
         this.chunks = chunks.values();
         rayTraceDistance = chunkPacketBlockControllerAntiXray.rayTraceDistance;
         rayTraceDistanceSquared = rayTraceDistance * rayTraceDistance;
