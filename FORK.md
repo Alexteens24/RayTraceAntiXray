@@ -83,6 +83,23 @@ Check out the branch that matches your server’s Paper generation before buildi
 
 ---
 
+## Config reload (`/raytraceantixray reload`)
+
+This fork supports reloading **`config.yml` at runtime** (upstream historically did not). **`RayTraceAntiXray.reloadPluginConfiguration()`** (main thread only):
+
+1. Reloads **`config.yml`** from disk.
+2. Shuts down and recreates the ray-trace **thread pool** and **async tick** (`ms-per-ray-trace-tick`, `ray-trace-threads`, `update-ticks`).
+3. Reapplies **`ChunkPacketBlockControllerAntiXray`** on all loaded worlds via **`WorldListener.handleLoad`**.
+4. Clears and re-registers **online players** (`PlayerListener.unregisterAndReregisterAll`).
+
+**Still unsafe / unsupported:** Bukkit **`/reload`**, hot-swapping the plugin JAR, or enable/disable via plugin managers. Use a **full server restart** for binary or dependency changes (Paper Anti-Xray, PacketEvents).
+
+**Operator notes:** if obfuscation looks wrong after reload, have players **reconnect**. Per-chunk hidden-block lists are built when a chunk is **sent**, not on reload.
+
+Command permissions and usage strings: **`plugin.yml`**, **`README.txt`** (saved to the data folder on first run).
+
+---
+
 ## Runtime dependencies
 
 Besides Paper (and Folia if used), **PacketEvents** (Spigot/Paper build) is required. The **README** remains the primary install guide for server admins.

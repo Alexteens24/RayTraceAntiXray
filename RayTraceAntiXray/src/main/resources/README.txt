@@ -5,6 +5,8 @@ Command:
 /raytraceantixray reload
 Description:
 Reloads config.yml and reapplies ray-trace scheduling, world controllers, and online player tasks.
+Does not replace a server restart when updating the plugin JAR, Paper Anti-Xray, or PacketEvents.
+If obfuscation looks wrong after reload, have players reconnect; chunk block lists update when chunks are resent.
 Permissions:
 raytraceantixray.command.raytraceantixray.reload
 

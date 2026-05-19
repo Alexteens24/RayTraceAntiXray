@@ -16,7 +16,7 @@ This repository is a fork of **[stonar96/RayTraceAntiXray](https://github.com/st
 * **Folia / threading**: Ray-trace work is driven from **Paper’s async scheduler** (`runAtFixedRate`); Folia is detected at runtime and sensitive paths defer to **region/player schedulers** where required.
 * **Client updates**: `UpdateBukkitRunnable` **batches** block-update packets and uses a **single flush** per batch, with checks so writes stay on the expected channel.
 * **World hookup**: Worlds that already exist when the plugin enables still get a controller (not only `WorldInitEvent`).
-* **Reliability & ops**: Clearer **shutdown** and **player disconnect** handling, improved **logging** around ray-trace pool failures, and **cache initialization** tweaks in the hot ray path.
+* **Reliability & ops**: Clearer **shutdown** and **player disconnect** handling, improved **logging** around ray-trace pool failures, **cache initialization** tweaks in the hot ray path, and **`/raytraceantixray reload`** to apply `config.yml` without a full server restart.
 * **Ray traversal (optional)**: Branch **`feature/section-leap-dda`** adds per-world **`section-leap`** in `config.yml` to skip voxel steps across **air-only 16³ chunk sections** before block DDA; set `false` to compare against pure DDA in profilers.
 
 **Paper / Minecraft version branches**
@@ -35,11 +35,26 @@ For a longer, file-by-file rationale (including notes that mirror upstream’s L
 * Download and install [RayTraceAntiXray](https://builtbybit.com/resources/raytraceantixray.24914/). (For older Minecraft versions, browse the update history.)
 * Configure RayTraceAntiXray by editing the file plugins/RayTraceAntiXray/[config.yml](RayTraceAntiXray/src/main/resources/config.yml).
 * See also: [Recommended settings](https://gist.github.com/stonar96/69ca0311392188b7ac2ece226286147f).
-* Note that you should restart your server after each of these steps. Don't enable, disable or reload this plugin on a running server under any circumstances (e.g. using `/reload`, plugin managers, etc.). It won't work properly and will cause issues.
+* **Restart the server** after the first install or after replacing the plugin JAR. Do **not** use Bukkit’s `/reload`, PlugMan-style plugin managers, or enable/disable the plugin jar on a running server — that leaves chunk controllers and player state inconsistent.
+
+## Commands
+
+After the plugin is enabled, you can change most RayTraceAntiXray settings without a full restart:
+
+| Command | Permission | Description |
+|---------|------------|-------------|
+| `/raytraceantixray reload` | `raytraceantixray.command.raytraceantixray.reload` | Reloads `config.yml`, restarts the ray-trace thread pool and async tick, reapplies per-world chunk controllers, and re-registers online players. |
+| `/raytraceantixray timings on` | `raytraceantixray.command.raytraceantixray.timings.on` | Enables internal timings (also requires `…timings`). |
+| `/raytraceantixray timings off` | `raytraceantixray.command.raytraceantixray.timings.off` | Disables timings (also requires `…timings`). |
+
+All subcommands require `raytraceantixray.command.raytraceantixray`. Full permission names are listed in `plugins/RayTraceAntiXray/README.txt` (copied from the jar on first run).
+
+**After `/raytraceantixray reload`:** players who see missing or stuck obfuscation should reconnect. Chunks already sent to clients are not rebuilt until those chunks are sent again (same as upstream — block lists are fixed when a chunk is first sent).
+
 ## Known issues
 * Depending on the number of players and config settings, this plugin can be resource intensive. I only recommend using it if you have "unused" CPU threads available on your server in order to minimize the impact on the main thread.
 * The culling algorithm is intentionally not 100% accurate for performance and functional reasons. When in doubt, it is assumed that a block is visible. Thus hidden blocks tend to be revealed rather earlier than late, provided that the server isn't overloaded and doesn't lag. Usually, however, this cannot be abused.
-* There is currently no way to reload this plugin.
+* Config reload (`/raytraceantixray reload`) does not replace a server restart when you change the plugin binary, Paper Anti-Xray settings, or PacketEvents — restart for those.
 ## Demo
 ![RayTraceAntiXray](https://user-images.githubusercontent.com/18699205/112784731-aed75e00-9052-11eb-92d6-b0dd4af79290.gif)
 ## License
