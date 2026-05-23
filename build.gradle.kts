@@ -6,15 +6,44 @@ plugins {
 }
 
 group = "com.vanillage.raytraceantixray"
-version = "1.16.3.4"
+version = "1.17.0"
 description = "Paper plugin for server-side async multithreaded ray tracing to hide ores that are exposed to air using Paper Anti-Xray engine-mode 1."
 
-val paperVersion = (project.findProperty("paperVersion") as String?) ?: "1.21.11-R0.1-SNAPSHOT"
+data class PaperTarget(
+    val paperVersion: String,
+    val minecraftVersion: String,
+    val javaVersion: Int,
+    val apiVersion: String,
+    val nmsSourceDir: String,
+)
+
+val paperTargets = mapOf(
+    "1.21.11" to PaperTarget(
+        paperVersion = "1.21.11-R0.1-SNAPSHOT",
+        minecraftVersion = "1.21.11",
+        javaVersion = 21,
+        apiVersion = "1.21.11",
+        nmsSourceDir = "RayTraceAntiXray/src/nms/paper-1.21.11/java",
+    ),
+    "26.1.2" to PaperTarget(
+        paperVersion = "26.1.2.build.65-stable",
+        minecraftVersion = "26.1.2",
+        javaVersion = 25,
+        apiVersion = "26.1.2",
+        nmsSourceDir = "RayTraceAntiXray/src/nms/paper-26.1.2/java",
+    ),
+)
+
+val paperTargetName = (findProperty("paperTarget") as String?) ?: "26.1.2"
+val paperTarget = paperTargets[paperTargetName]
+    ?: throw GradleException("Unknown paperTarget '$paperTargetName'. Supported: ${paperTargets.keys.sorted()}")
+
+extra["paperTarget"] = paperTargetName
+extra["minecraftVersion"] = paperTarget.minecraftVersion
 
 java {
     toolchain {
-        // Paper 26.1+ userdev runs Paperclip with the toolchain JDK; requires Java 25+.
-        languageVersion.set(JavaLanguageVersion.of(25))
+        languageVersion.set(JavaLanguageVersion.of(paperTarget.javaVersion))
     }
     withSourcesJar()
 }
@@ -26,23 +55,27 @@ repositories {
 }
 
 dependencies {
-    paperweight.paperDevBundle(paperVersion)
+    paperweight.paperDevBundle(paperTarget.paperVersion)
     compileOnly("com.github.retrooper:packetevents-spigot:2.12.1")
 
     testImplementation(platform("org.junit:junit-bom:5.11.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation("org.mockito:mockito-junit-jupiter:5.14.2")
-    testImplementation(paperweight.paperDevBundle(paperVersion))
+    testImplementation(paperweight.paperDevBundle(paperTarget.paperVersion))
     testImplementation(sourceSets.main.get().output.classesDirs)
 }
 
-// Paper 1.20.5+ runtime is Mojang-mapped; ship a Mojang-mapped plugin JAR (no reobf to Spigot).
 paperweight.reobfArtifactConfiguration = ReobfArtifactConfiguration.MOJANG_PRODUCTION
 
 sourceSets {
     named("main") {
-        java.setSrcDirs(listOf("RayTraceAntiXray/src/main/java"))
+        java.setSrcDirs(
+            listOf(
+                "RayTraceAntiXray/src/main/java",
+                paperTarget.nmsSourceDir,
+            ),
+        )
         resources.setSrcDirs(listOf("RayTraceAntiXray/src/main/resources"))
     }
     named("test") {
@@ -54,12 +87,12 @@ sourceSets {
 tasks {
     compileJava {
         options.encoding = "UTF-8"
-        options.release.set(25)
+        options.release.set(paperTarget.javaVersion)
     }
 
     compileTestJava {
         options.encoding = "UTF-8"
-        options.release.set(25)
+        options.release.set(paperTarget.javaVersion)
     }
 
     test {
@@ -84,9 +117,18 @@ tasks {
 
     processResources {
         filteringCharset = "UTF-8"
+        filesMatching("plugin.yml") {
+            expand(
+                mapOf(
+                    "apiVersion" to paperTarget.apiVersion,
+                    "pluginVersion" to project.version,
+                ),
+            )
+        }
     }
 
     jar {
         archiveBaseName.set("RayTraceAntiXray")
+        archiveClassifier.set(paperTargetName)
     }
 }

@@ -21,7 +21,7 @@ import com.vanillage.raytraceantixray.data.VectorialLocation;
 import com.vanillage.raytraceantixray.tasks.RayTraceCallable;
 
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
-import net.minecraft.world.level.ChunkPos;
+import com.vanillage.raytraceantixray.nms.NmsCompat;
 import net.minecraft.world.level.chunk.LevelChunk;
 
 /**
@@ -134,7 +134,7 @@ public final class PacketListener extends PacketListenerAbstract {
         }
 
         WrapperPlayServerUnloadChunk wrapper = new WrapperPlayServerUnloadChunk(event);
-        long chunkKey = ChunkPos.pack(wrapper.getChunkX(), wrapper.getChunkZ());
+        long chunkKey = NmsCompat.chunkKey(wrapper.getChunkX(), wrapper.getChunkZ());
 
         player.getScheduler().run(plugin, (ScheduledTask task) -> finishUnloadChunk(player, chunkKey), null);
     }

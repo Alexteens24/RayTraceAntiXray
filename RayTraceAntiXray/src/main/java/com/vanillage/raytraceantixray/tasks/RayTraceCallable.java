@@ -25,6 +25,7 @@ import com.vanillage.raytraceantixray.util.BlockOcclusionCulling.BlockOcclusionG
 
 import io.papermc.paper.antixray.ChunkPacketBlockController;
 import net.minecraft.core.BlockPos;
+import com.vanillage.raytraceantixray.nms.NmsCompat;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -80,7 +81,7 @@ public final class RayTraceCallable implements Callable<Void> {
                 int chunkZ = z >> 4;
 
                 if (this.chunkX != chunkX || this.chunkZ != chunkZ) {
-                    mutableLongWrapper.setValue(ChunkPos.pack(chunkX, chunkZ));
+                    mutableLongWrapper.setValue(NmsCompat.chunkKey(chunkX, chunkZ));
                     ChunkBlocks chunkBlocks = chunks.get(mutableLongWrapper);
 
                     if (chunkBlocks == null) {
@@ -138,7 +139,7 @@ public final class RayTraceCallable implements Callable<Void> {
                     this.chunkX = chunkX;
                     this.sectionY = sectionY;
                     this.chunkZ = chunkZ;
-                    mutableLongWrapper.setValue(ChunkPos.pack(chunkX, chunkZ));
+                    mutableLongWrapper.setValue(NmsCompat.chunkKey(chunkX, chunkZ));
                     ChunkBlocks chunkBlocks = chunks.get(mutableLongWrapper);
 
                     if (chunkBlocks == null) {
@@ -216,7 +217,7 @@ public final class RayTraceCallable implements Callable<Void> {
                 int ix = wx >> 4;
                 int iz = wz >> 4;
                 int iSectionY = wy >> 4;
-                mutableLongWrapper.setValue(ChunkPos.pack(ix, iz));
+                mutableLongWrapper.setValue(NmsCompat.chunkKey(ix, iz));
                 ChunkBlocks chunkBlocks = chunks.get(mutableLongWrapper);
 
                 if (chunkBlocks == null) {
@@ -306,13 +307,13 @@ public final class RayTraceCallable implements Callable<Void> {
             }
 
             ChunkPos chunkPos = chunk.getPos();
-            int chunkX = chunkPos.x();
+            int chunkX = NmsCompat.chunkX(chunkPos);
 
             if (chunkX < chunkXMin || chunkX > chunkXMax) {
                 continue;
             }
 
-            int chunkZ = chunkPos.z();
+            int chunkZ = NmsCompat.chunkZ(chunkPos);
 
             if (chunkZ < chunkZMin || chunkZ > chunkZMax) {
                 continue;

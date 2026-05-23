@@ -39,7 +39,7 @@ import io.papermc.paper.antixray.ChunkPacketBlockController;
 import io.papermc.paper.configuration.WorldConfiguration.Anticheat.AntiXray;
 import io.papermc.paper.configuration.type.EngineMode;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.ChunkPos;
+import com.vanillage.raytraceantixray.nms.NmsCompat;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -243,7 +243,7 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
     }
 
     public void enqueuePendingChunkBlocks(UUID playerId, int chunkX, int chunkZ, ChunkBlocks chunkBlocks) {
-        long chunkKey = ChunkPos.pack(chunkX, chunkZ);
+        long chunkKey = NmsCompat.chunkKey(chunkX, chunkZ);
         pendingChunkBlocksByPlayer
             .computeIfAbsent(playerId, k -> new ConcurrentHashMap<>())
             .computeIfAbsent(chunkKey, k -> new ConcurrentLinkedQueue<>())
@@ -251,7 +251,7 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
     }
 
     public ChunkBlocks pollPendingChunkBlocks(UUID playerId, int chunkX, int chunkZ) {
-        long chunkKey = ChunkPos.pack(chunkX, chunkZ);
+        long chunkKey = NmsCompat.chunkKey(chunkX, chunkZ);
         ConcurrentMap<Long, ConcurrentLinkedQueue<ChunkBlocks>> byChunk = pendingChunkBlocksByPlayer.get(playerId);
         if (byChunk == null) {
             return null;

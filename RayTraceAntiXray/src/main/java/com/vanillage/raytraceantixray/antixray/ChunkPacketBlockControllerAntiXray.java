@@ -1,6 +1,7 @@
 package com.vanillage.raytraceantixray.antixray;
 
 import com.vanillage.raytraceantixray.RayTraceAntiXray;
+import com.vanillage.raytraceantixray.nms.NmsCompat;
 import com.vanillage.raytraceantixray.data.ChunkBlocks;
 
 import io.papermc.paper.antixray.BitStorageReader;
@@ -266,8 +267,8 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
         }
 
         LevelChunk chunk = chunkPacketInfo.getChunk();
-        int x = chunk.getPos().x();
-        int z = chunk.getPos().z();
+        int x = NmsCompat.chunkX(chunk.getPos());
+        int z = NmsCompat.chunkZ(chunk.getPos());
         Level level = chunk.getLevel();
         ((ChunkPacketInfoAntiXray) chunkPacketInfo).setNearbyChunks(level.getChunkIfLoaded(x - 1, z), level.getChunkIfLoaded(x + 1, z), level.getChunkIfLoaded(x, z - 1), level.getChunkIfLoaded(x, z + 1));
         executor.execute((Runnable) chunkPacketInfo);
@@ -496,7 +497,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             ChunkBlocks chunkBlocks = new ChunkBlocks(chunkPacketInfoAntiXray.getChunk(), blocks);
             ServerPlayer targetPlayer = chunkPacketInfoAntiXray.getTargetPlayer();
             if (targetPlayer != null) {
-                plugin.enqueuePendingChunkBlocks(targetPlayer.getUUID(), chunk.getPos().x(), chunk.getPos().z(), chunkBlocks);
+                plugin.enqueuePendingChunkBlocks(targetPlayer.getUUID(), NmsCompat.chunkX(chunk.getPos()), NmsCompat.chunkZ(chunk.getPos()), chunkBlocks);
             } else {
                 plugin.getLogger().warning("RayTraceAntiXray: chunk packet has no ServerPlayer context; ray tracing may miss this chunk (Paper should call shouldModify before getChunkPacketInfo).");
             }

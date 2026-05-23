@@ -93,25 +93,35 @@ flowchart LR
 
 ---
 
-## 4. Version branches
+## 4. Build targets (`paperTarget`)
 
-There is no `main` branch. Build the branch that matches your server’s Paper generation:
+One **`main`** branch; pick the Paper generation at **compile time** with `-PpaperTarget=…`. Each build produces a classified JAR, e.g. `RayTraceAntiXray-1.17.0-26.1.2.jar`.
 
-| Branch | Minecraft / Paper | Java (toolchain) | `api-version` |
-|--------|-------------------|------------------|---------------|
-| [`1.21.11`](tree/1.21.11) | 1.21.11 | 21 | `1.21.11` |
-| [`26.1.2`](tree/26.1.2) | 26.1.2 (26.x) | 25 | `26.1.2` |
+| `paperTarget` | Minecraft / Paper | Java (toolchain) | `plugin.yml` `api-version` |
+|---------------|-------------------|------------------|----------------------------|
+| **`1.21.11`** | 1.21.11 | 21 | `1.21.11` |
+| **`26.1.2`** | 26.1.2 (26.x) | 25 | `26.1.2` |
 
-NMS differences between branches are mechanical (e.g. `ChunkPos.asLong` vs `ChunkPos.pack`); see [FORK.md § Version branches](FORK.md#version-branches).
+NMS differences are isolated in `com.vanillage.raytraceantixray.nms.NmsCompat` under `RayTraceAntiXray/src/nms/paper-<target>/` — see [FORK.md § Build targets](FORK.md#build-targets-papertarget).
+
+```bash
+# Default (gradle.properties paperTarget=26.1.2)
+./gradlew build
+
+# Paper 1.21.11 server
+./gradlew build -PpaperTarget=1.21.11
+```
+
+Install the JAR whose **classifier matches your server** (`-1.21.11` or `-26.1.2`).
 
 ---
 
 ## 5. Installation
 
-1. Install [Paper](https://papermc.io/downloads/paper) matching your chosen branch (`gradle.properties` on that branch).
+1. Install [Paper](https://papermc.io/downloads/paper) for your generation (**1.21.11** or **26.1.2**).
 2. Enable Paper Anti-Xray with **`engine-mode: 1`** ([documentation](https://docs.papermc.io/paper/anti-xray/)).
 3. Install **PacketEvents** (Spigot/Paper build).
-4. Install **RayTraceAntiXray** ([release](https://builtbybit.com/resources/raytraceantixray.24914/) or build from source on the correct branch).
+4. Install the matching **RayTraceAntiXray** JAR ([release](https://builtbybit.com/resources/raytraceantixray.24914/) or `./gradlew build -PpaperTarget=…`).
 5. Edit `plugins/RayTraceAntiXray/config.yml` ([defaults](RayTraceAntiXray/src/main/resources/config.yml)).
 6. **Restart the server** after first install or JAR replacement.
 
@@ -161,14 +171,15 @@ Requires `raytraceantixray.command.raytraceantixray`. Full permission tree: `plu
 ## 8. Development
 
 ```bash
-# Unit tests (excludes @Tag("bench"))
+# Unit tests for default paperTarget (excludes @Tag("bench"))
 ./gradlew test
 
-# Section-leap vs pure DDA micro-benchmark (stdout table)
-./gradlew bench --rerun-tasks
-```
+# Other target
+./gradlew test -PpaperTarget=1.21.11
 
-Build: `./gradlew build` on the branch that matches your `paperVersion` in `gradle.properties`.
+# Section-leap vs pure DDA micro-benchmark (stdout table)
+./gradlew bench --rerun-tasks -PpaperTarget=26.1.2
+```
 
 ---
 

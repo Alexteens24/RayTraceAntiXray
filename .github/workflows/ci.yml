@@ -1,11 +1,9 @@
-# Smart CI: one runner JDK (25) satisfies Paperclip for 26.1.x; older branches still
-# compile because build.gradle.kts pins a lower Java *toolchain* and Gradle auto-provisions
-# it via the Foojay resolver (settings.gradle.kts). No branch→JDK matrix to maintain.
+# Runner JDK 25 satisfies Paper 26.1 paperclip; Gradle toolchains provision Java 21 for paperTarget=1.21.11.
 name: CI
 
 on:
   push:
-    branches: ["26.1.2", "1.21.11"]
+    branches: ["main"]
     paths:
       - "RayTraceAntiXray/**"
       - "build.gradle.kts"
@@ -14,7 +12,7 @@ on:
       - "gradle/**"
       - ".github/workflows/**"
   pull_request:
-    branches: ["26.1.2", "1.21.11"]
+    branches: ["main"]
     paths:
       - "RayTraceAntiXray/**"
       - "build.gradle.kts"
@@ -31,13 +29,16 @@ permissions:
   contents: read
 
 env:
-  # High enough for Paper 26.1 paperclip; Gradle on 25 can still fork toolchain 21 for 1.21.11.
   CI_JAVA_VERSION: "25"
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        paperTarget: ["1.21.11", "26.1.2"]
     steps:
       - uses: actions/checkout@v4
 
@@ -53,49 +54,35 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Build
-        run: ./gradlew build --no-daemon --stacktrace
+      - name: Build (${{ matrix.paperTarget }})
+        run: ./gradlew build --no-daemon --stacktrace -PpaperTarget=${{ matrix.paperTarget }}
 
-      # Artifact names cannot contain / " : < > | * ? CR LF — see:
-      # https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts
-      # Use default env GITHUB_REF_NAME (short ref) and sanitize in the shell; avoid brittle ${{ replace(...) }} literals.
       - name: Prepare artifact (plugin JAR only)
-        id: plugin-jar
         if: success() && github.event_name == 'push'
         run: |
-          mkdir -p ci-out
+          mkdir -p "ci-out/${{ matrix.paperTarget }}"
           shopt -s nullglob
-          for f in build/libs/RayTraceAntiXray-*.jar; do
-            case "$f" in
-              *-sources.jar) ;;
-              *) cp "$f" ci-out/ ;;
-            esac
+          for f in build/libs/RayTraceAntiXray-*-${{ matrix.paperTarget }}.jar; do
+            cp "$f" "ci-out/${{ matrix.paperTarget }}/"
           done
-          test "$(find ci-out -name '*.jar' | wc -l)" -ge 1
-          safe_ref="${GITHUB_REF_NAME//\//-}"
-          echo "artifact_name=RayTraceAntiXray-${safe_ref}-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          test "$(find "ci-out/${{ matrix.paperTarget }}" -name '*.jar' | wc -l)" -ge 1
 
-      - name: Upload plugin JAR
+      - name: Upload plugin JAR (${{ matrix.paperTarget }})
         if: success() && github.event_name == 'push'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.plugin-jar.outputs.artifact_name }}
-          path: ci-out/*.jar
+          name: RayTraceAntiXray-${{ matrix.paperTarget }}-${{ github.sha }}
+          path: ci-out/${{ matrix.paperTarget }}/*.jar
           if-no-files-found: error
 
       - name: Summary
         if: always()
         run: |
           {
-            echo "## CI"
+            echo "## CI — paperTarget=${{ matrix.paperTarget }}"
             echo "| | |"
             echo "|--|--|"
             echo "| Event | ${{ github.event_name }} |"
-            echo "| Ref | ${{ github.ref }} |"
-            echo "| Runner JDK | **${{ env.CI_JAVA_VERSION }}** (see workflow comment: toolchain + Foojay) |"
-            echo ""
-            echo "### Paper / Minecraft (from gradle.properties)"
-            echo '```'
-            grep -E '^(paperVersion|minecraftVersion)=' gradle.properties 2>/dev/null || echo "(no matching keys)"
-            echo '```'
+            echo "| paperTarget | **${{ matrix.paperTarget }}** |"
+            echo "| Runner JDK | **${{ env.CI_JAVA_VERSION }}** |"
           } >> "$GITHUB_STEP_SUMMARY"

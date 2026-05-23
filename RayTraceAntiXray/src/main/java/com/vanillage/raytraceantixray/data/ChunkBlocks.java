@@ -5,6 +5,7 @@ import java.lang.ref.WeakReference;
 import java.util.Map;
 
 import net.minecraft.core.BlockPos;
+import com.vanillage.raytraceantixray.nms.NmsCompat;
 import net.minecraft.world.level.chunk.LevelChunk;
 
 public final class ChunkBlocks {
@@ -14,7 +15,7 @@ public final class ChunkBlocks {
 
     public ChunkBlocks(LevelChunk chunk, Map<BlockPos, Boolean> blocks) {
         this.chunk = new WeakReference<>(chunk);
-        key = new LongWrapper(chunk.getPos().pack());
+        key = new LongWrapper(NmsCompat.chunkPosKey(chunk.getPos()));
         this.blocks = blocks;
     }
 

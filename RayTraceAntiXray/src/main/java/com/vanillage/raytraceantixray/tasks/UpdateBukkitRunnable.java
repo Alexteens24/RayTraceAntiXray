@@ -14,6 +14,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import com.vanillage.raytraceantixray.RayTraceAntiXray;
+import com.vanillage.raytraceantixray.nms.NmsCompat;
 import com.vanillage.raytraceantixray.data.ChunkBlocks;
 import com.vanillage.raytraceantixray.data.LongWrapper;
 import com.vanillage.raytraceantixray.data.PlayerData;
@@ -142,7 +143,7 @@ public final class UpdateBukkitRunnable extends BukkitRunnable implements Consum
 
         ServerGamePacketListenerImpl connection = ((CraftPlayer) player).getHandle().connection;
 
-        if (connection == null || connection.isDisconnected()) {
+        if (connection == null || NmsCompat.isConnectionDisconnected(connection)) {
             return;
         }
 
