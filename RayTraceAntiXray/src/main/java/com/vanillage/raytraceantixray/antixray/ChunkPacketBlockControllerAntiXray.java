@@ -194,9 +194,11 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
 
             if (blockState != null) {
                 blockEntityGlobal[i] = blockState.hasBlockEntity();
+                Block block = blockState.getBlock();
+                // Paper 26.x removed BlockState#is(Block); compare block type via getBlock().
                 solidGlobal[i] = blockState.isRedstoneConductor(emptyChunk, zeroPos)
-                    && !blockState.is(Blocks.SPAWNER) && !blockState.is(Blocks.BARRIER) && !blockState.is(Blocks.SHULKER_BOX) && !blockState.is(Blocks.SLIME_BLOCK) && !blockState.is(Blocks.MANGROVE_ROOTS) || paperWorldConfig.lavaObscures && blockState == Blocks.LAVA.defaultBlockState();
-                // Comparing blockState == Blocks.LAVA.defaultBlockState() instead of blockState.is(Blocks.LAVA) ensures that only "stationary lava" is used
+                    && block != Blocks.SPAWNER && block != Blocks.BARRIER && block != Blocks.SHULKER_BOX && block != Blocks.SLIME_BLOCK && block != Blocks.MANGROVE_ROOTS || paperWorldConfig.lavaObscures && blockState == Blocks.LAVA.defaultBlockState();
+                // Comparing blockState == Blocks.LAVA.defaultBlockState() instead of fluid-tag checks ensures that only "stationary lava" is used
                 // shulker box checks TE.
             }
         }

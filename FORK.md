@@ -33,6 +33,7 @@ Mechanical API renames only:
 - **`ChunkPos`**: `asLong(x, z)` → **`pack(x, z)`**; **`toLong()`** on chunk pos → **`pack()`**.
 - **`ChunkPos` coordinates**: field access **`.x` / `.z`** → **`.x()` / `.z()`** (record-style accessors on Mojang types).
 - **`ServerGamePacketListenerImpl`**: **`processedDisconnect`** → **`isDisconnected()`** in `UpdateBukkitRunnable`.
+- **`BlockState#is(Block)`** removed on **26.x**; use **`blockState.getBlock() == Blocks.…`** (see `ChunkPacketBlockControllerAntiXray` solid-mask init).
 - **`build.gradle.kts` / `gradle.properties`**: toolchain and **`options.release`** set to **25**; default **`paperVersion`** / **`minecraftVersion`** point at the **26.1.2** line.
 
 Check out the branch that matches your server’s Paper generation before building.
