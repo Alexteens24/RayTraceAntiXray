@@ -130,8 +130,10 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
         }
 
         try {
-            executorService.shutdownNow();
-            executorService.awaitTermination(1000L, TimeUnit.MILLISECONDS);
+            if (executorService != null) {
+                executorService.shutdownNow();
+                executorService.awaitTermination(1000L, TimeUnit.MILLISECONDS);
+            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throwable = mergeThrowables(throwable, new RuntimeException(e));

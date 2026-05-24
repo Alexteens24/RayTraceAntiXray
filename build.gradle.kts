@@ -145,6 +145,7 @@ tasks.shadowJar {
 
     dependencies {
         include(dependency("org.bstats:bstats-bukkit:3.2.1"))
+        include(dependency("org.bstats:bstats-base:3.2.1"))
     }
 
     relocate("org.bstats", project.group.toString())
