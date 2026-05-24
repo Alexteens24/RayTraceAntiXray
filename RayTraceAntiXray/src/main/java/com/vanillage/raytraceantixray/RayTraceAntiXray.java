@@ -33,6 +33,7 @@ import com.vanillage.raytraceantixray.data.VectorialLocation;
 import com.vanillage.raytraceantixray.listeners.PacketListener;
 import com.vanillage.raytraceantixray.listeners.PlayerListener;
 import com.vanillage.raytraceantixray.listeners.WorldListener;
+import com.vanillage.raytraceantixray.metrics.RayTraceAntiXrayMetrics;
 import com.vanillage.raytraceantixray.tasks.RayTraceTimerTask;
 
 import io.papermc.paper.antixray.ChunkPacketBlockController;
@@ -83,6 +84,7 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
         }
 
         running = true;
+        RayTraceAntiXrayMetrics.register(this, folia, config);
         startRayTraceSchedulerFromConfig(config);
 
         // Block updates run per-player via PlayerListener + EntityScheduler (required on Folia/Canvas for world reads).

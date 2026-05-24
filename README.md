@@ -91,6 +91,8 @@ flowchart LR
 
 **Runtime dependencies:** Paper (Folia-capable builds where applicable), [PacketEvents](https://modrinth.com/plugin/packetevents), Paper Anti-Xray **engine-mode 1**.
 
+Anonymous usage metrics via [bStats](https://bstats.org/plugin/bukkit/RayTraceAntiXray/31528) (relocated in the plugin JAR). Opt out with `plugins/bStats/config.yml` on the server.
+
 ---
 
 ## 4. Build targets (`paperTarget`)

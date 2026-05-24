@@ -3,10 +3,11 @@ import io.papermc.paperweight.userdev.ReobfArtifactConfiguration
 plugins {
     java
     id("io.papermc.paperweight.userdev") version "2.0.0-beta.21"
+    id("com.gradleup.shadow") version "9.3.1"
 }
 
 group = "com.vanillage.raytraceantixray"
-version = "1.17.0"
+version = "1.17.1"
 description = "Paper plugin for server-side async multithreaded ray tracing to hide ores that are exposed to air using Paper Anti-Xray engine-mode 1."
 
 data class PaperTarget(
@@ -57,6 +58,7 @@ repositories {
 dependencies {
     paperweight.paperDevBundle(paperTarget.paperVersion)
     compileOnly("com.github.retrooper:packetevents-spigot:2.12.1")
+    implementation("org.bstats:bstats-bukkit:3.2.1")
 
     testImplementation(platform("org.junit:junit-bom:5.11.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
@@ -129,6 +131,31 @@ tasks {
 
     jar {
         archiveBaseName.set("RayTraceAntiXray")
-        archiveClassifier.set(paperTargetName)
+        archiveClassifier.set("$paperTargetName-plain")
     }
+
+}
+
+tasks.shadowJar {
+    archiveBaseName.set("RayTraceAntiXray")
+    archiveClassifier.set(paperTargetName)
+
+    dependsOn(tasks.jar)
+    from(tasks.jar.flatMap { it.archiveFile }.map { zipTree(it) })
+
+    dependencies {
+        include(dependency("org.bstats:bstats-bukkit:3.2.1"))
+    }
+
+    relocate("org.bstats", project.group.toString())
+
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+tasks.assemble {
+    dependsOn(tasks.shadowJar)
+}
+
+tasks.build {
+    dependsOn(tasks.shadowJar)
 }
