@@ -30,6 +30,7 @@ import com.vanillage.raytraceantixray.commands.RayTraceAntiXrayTabExecutor;
 import com.vanillage.raytraceantixray.data.ChunkBlocks;
 import com.vanillage.raytraceantixray.data.PlayerData;
 import com.vanillage.raytraceantixray.data.VectorialLocation;
+import com.vanillage.raytraceantixray.compat.LeafAsyncChunkSendCompat;
 import com.vanillage.raytraceantixray.listeners.PacketListener;
 import com.vanillage.raytraceantixray.listeners.PlayerListener;
 import com.vanillage.raytraceantixray.listeners.WorldListener;
@@ -103,6 +104,7 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
         PacketEvents.getAPI().getEventManager().registerListener(packetEventsChunkListener);
         // registerCommands();
         getCommand("raytraceantixray").setExecutor(new RayTraceAntiXrayTabExecutor(this));
+        LeafAsyncChunkSendCompat.logStatus(getLogger());
         getLogger().info(getPluginMeta().getDisplayName() + " enabled");
     }
 

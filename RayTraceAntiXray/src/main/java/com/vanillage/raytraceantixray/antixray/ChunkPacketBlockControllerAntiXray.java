@@ -1,6 +1,7 @@
 package com.vanillage.raytraceantixray.antixray;
 
 import com.vanillage.raytraceantixray.RayTraceAntiXray;
+import com.vanillage.raytraceantixray.compat.LeafAsyncChunkSendCompat;
 import com.vanillage.raytraceantixray.nms.NmsCompat;
 import com.vanillage.raytraceantixray.data.ChunkBlocks;
 
@@ -90,6 +91,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
     /**
      * Paper calls {@link #shouldModify(ServerPlayer, LevelChunk)} on the server thread before {@link #getChunkPacketInfo}
      * for the same outgoing chunk; we capture the player here so obfuscation (async) can queue chunk data for PacketEvents.
+     * Leaf {@code async-chunk-send} breaks this ThreadLocal; see {@link LeafAsyncChunkSendCompat}.
      */
     private static final ThreadLocal<ServerPlayer> ANTIXRAY_CHUNK_SEND_TARGET = new ThreadLocal<>();
 
@@ -238,7 +240,11 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
     public boolean shouldModify(ServerPlayer player, LevelChunk chunk) {
         boolean willModify = !usePermission || !player.getBukkitEntity().hasPermission("paper.antixray.bypass");
         if (willModify) {
-            ANTIXRAY_CHUNK_SEND_TARGET.set(player);
+            if (LeafAsyncChunkSendCompat.isActive()) {
+                LeafAsyncChunkSendCompat.onShouldModify(player, chunk);
+            } else {
+                ANTIXRAY_CHUNK_SEND_TARGET.set(player);
+            }
         } else {
             ANTIXRAY_CHUNK_SEND_TARGET.remove();
         }
@@ -248,8 +254,13 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
     @Override
     public ChunkPacketInfoAntiXray getChunkPacketInfo(ClientboundLevelChunkWithLightPacket chunkPacket, LevelChunk chunk) {
         // Return a new instance to collect data and objects in the right state while creating the chunk packet for thread safe access later
-        ServerPlayer targetPlayer = ANTIXRAY_CHUNK_SEND_TARGET.get();
-        ANTIXRAY_CHUNK_SEND_TARGET.remove();
+        ServerPlayer targetPlayer;
+        if (LeafAsyncChunkSendCompat.isActive()) {
+            targetPlayer = LeafAsyncChunkSendCompat.pollTargetPlayer(chunk, plugin.getLogger());
+        } else {
+            targetPlayer = ANTIXRAY_CHUNK_SEND_TARGET.get();
+            ANTIXRAY_CHUNK_SEND_TARGET.remove();
+        }
         return new ChunkPacketInfoAntiXray(chunkPacket, chunk, this, targetPlayer);
     }
 
@@ -270,8 +281,36 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
         int x = NmsCompat.chunkX(chunk.getPos());
         int z = NmsCompat.chunkZ(chunk.getPos());
         Level level = chunk.getLevel();
-        ((ChunkPacketInfoAntiXray) chunkPacketInfo).setNearbyChunks(level.getChunkIfLoaded(x - 1, z), level.getChunkIfLoaded(x + 1, z), level.getChunkIfLoaded(x, z - 1), level.getChunkIfLoaded(x, z + 1));
-        executor.execute((Runnable) chunkPacketInfo);
+        setNearbyChunksAndScheduleObfuscation((ChunkPacketInfoAntiXray) chunkPacketInfo, chunk, level, x, z);
+    }
+
+    /**
+     * Leaf {@code async-chunk-send} entry point (not on Paper's compile classpath; invoked by Leaf at runtime).
+     * Obfuscation runs on Leaf's async chunk-send thread, matching Paper's Leaf patch for anti-xray.
+     */
+    public void leaf$modifyBlocks(ClientboundLevelChunkWithLightPacket chunkPacket, ChunkPacketInfo<BlockState> chunkPacketInfo) {
+        if (!LeafAsyncChunkSendCompat.isActive()) {
+            modifyBlocks(chunkPacket, chunkPacketInfo);
+            return;
+        }
+        if (!(chunkPacketInfo instanceof ChunkPacketInfoAntiXray antiXray)) {
+            chunkPacket.setReady(true);
+            return;
+        }
+        LevelChunk chunk = chunkPacketInfo.getChunk();
+        int x = NmsCompat.chunkX(chunk.getPos());
+        int z = NmsCompat.chunkZ(chunk.getPos());
+        setNearbyChunksAndRunObfuscation(antiXray, chunk, chunk.getLevel(), x, z);
+    }
+
+    private void setNearbyChunksAndScheduleObfuscation(ChunkPacketInfoAntiXray chunkPacketInfoAntiXray, LevelChunk chunk, Level level, int x, int z) {
+        chunkPacketInfoAntiXray.setNearbyChunks(level.getChunkIfLoaded(x - 1, z), level.getChunkIfLoaded(x + 1, z), level.getChunkIfLoaded(x, z - 1), level.getChunkIfLoaded(x, z + 1));
+        executor.execute(chunkPacketInfoAntiXray);
+    }
+
+    private void setNearbyChunksAndRunObfuscation(ChunkPacketInfoAntiXray chunkPacketInfoAntiXray, LevelChunk chunk, Level level, int x, int z) {
+        chunkPacketInfoAntiXray.setNearbyChunks(level.getChunkIfLoaded(x - 1, z), level.getChunkIfLoaded(x + 1, z), level.getChunkIfLoaded(x, z - 1), level.getChunkIfLoaded(x, z + 1));
+        chunkPacketInfoAntiXray.run();
     }
 
     // Actually these fields should be variables inside the obfuscate method but in sync mode or with SingleThreadExecutor in async mode it's okay (even without ThreadLocal)

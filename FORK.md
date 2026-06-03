@@ -111,6 +111,19 @@ Command permissions and usage strings: **`plugin.yml`**, **`README.txt`** (saved
 
 ---
 
+## Leaf — `async-chunk-send`
+
+On [Leaf](https://github.com/Winds-Studio/Leaf), enabling **`async-chunk-send`** in `leaf-global.yml` builds chunk packets on a dedicated async thread and calls **`leaf$modifyBlocks`** instead of **`modifyBlocks`**. That breaks Paper’s usual same-thread pairing of **`shouldModify`** → **`getChunkPacketInfo`**.
+
+**`LeafAsyncChunkSendCompat`** (runtime-detected via reflection, no Leaf compile dependency):
+
+- FIFO queue from **`shouldModify`** (server thread) to **`getChunkPacketInfo`** (async thread), keyed by chunk column.
+- **`ChunkPacketBlockControllerAntiXray#leaf$modifyBlocks`** runs obfuscation inline on Leaf’s chunk-send thread (same approach as Paper’s Leaf patch).
+
+Pure Paper / Leaf with async chunk send disabled: unchanged ThreadLocal + **`modifyBlocks`** path.
+
+---
+
 ## Runtime dependencies
 
 Besides Paper (and Folia if used), **PacketEvents** (Spigot/Paper build) is required. The **README** remains the primary install guide for server admins.
