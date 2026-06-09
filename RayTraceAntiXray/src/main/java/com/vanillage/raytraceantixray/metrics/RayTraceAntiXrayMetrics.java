@@ -17,7 +17,7 @@ public final class RayTraceAntiXrayMetrics {
 
         metrics.addCustomChart(new SimplePie("platform", () -> folia ? "folia" : "paper"));
 
-        boolean sectionLeapDefault = config.getBoolean("world-settings.default.anti-xray.section-leap", true);
+        boolean sectionLeapDefault = config.getBoolean("world-settings.default.anti-xray.section-leap", false);
         metrics.addCustomChart(new SimplePie("section_leap_default", () -> sectionLeapDefault ? "on" : "off"));
 
         boolean thirdPersonDefault = config.getBoolean("world-settings.default.anti-xray.ray-trace-third-person", false);

@@ -150,7 +150,7 @@ Per-world (`world-settings.<world>.anti-xray`, inherits `default`):
 | `ray-trace` | Enable plugin logic for this world (requires Paper AX + engine-mode 1). |
 | `ray-trace-distance` | Max distance (blocks) for visibility tests. |
 | `ray-trace-third-person` | Additional rays for third-person camera origins (costly). |
-| `section-leap` | Skip air-only 16³ sections before DDA (`false` = legacy traversal). |
+| `section-leap` | Opt-in: skip air-only 16³ sections before DDA (`false` by default). |
 | `rehide-blocks` / `rehide-distance` | Dynamic re-obfuscation when LOS is lost. |
 | `max-ray-trace-block-count-per-chunk` | Cap on traced positions per chunk send. |
 | `ray-trace-blocks` | Block list; empty = Paper `hidden-blocks`. |

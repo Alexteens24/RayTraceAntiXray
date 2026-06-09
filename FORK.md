@@ -82,13 +82,13 @@ Default local build: `paperTarget=26.1.2` in `gradle.properties`.
 
 ## Section leap (air-only section skipping)
 
-When **`section-leap: true`** (default per world in `config.yml`):
+When **`section-leap: true`** (opt-in; default is **`false`**):
 
 1. During DDA in **`BlockOcclusionCulling`**, if **`BlockOcclusionGetter#sectionHasOnlyAir`** is true for the current voxel’s 16³ section, **`SectionRayMath.sectionExitParameter`** computes the ray exit of that section.
 2. **`BlockIterator#reseedAfterSectionLeap`** continues DDA from just inside that exit instead of visiting every air block in the section.
 3. **`RayTraceCallable`** implements **`sectionHasOnlyAir`** via **`LevelChunkSection#hasOnlyAir()`** on loaded chunks only; unloaded or missing sections return **`false`** (conservative — no leap).
 
-Set **`section-leap: false`** to force legacy per-voxel traversal (profiling / A-B tests). Unit tests in **`SectionRayMathTest`** and **`SectionLeapTraversalTest`** assert leap and legacy paths agree on mock getters.
+Legacy per-voxel traversal is the default. Set **`section-leap: true`** to enable air-only section skipping. Unit tests in **`SectionRayMathTest`** and **`SectionLeapTraversalTest`** assert leap and legacy paths agree on mock getters.
 
 Micro-benchmark (DDA only vs section-leap, prints a table): **`./gradlew bench --rerun-tasks`**. Normal **`./gradlew test`** excludes `@Tag("bench")` tests.
 
