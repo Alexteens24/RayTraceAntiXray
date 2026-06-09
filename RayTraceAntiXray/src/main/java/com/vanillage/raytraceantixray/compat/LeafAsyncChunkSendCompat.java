@@ -29,7 +29,10 @@ public final class LeafAsyncChunkSendCompat {
         return LEAF_PRESENT;
     }
 
-    /** {@code true} when Leaf is on the classpath and {@code async-chunk-send.enabled} is {@code true}. */
+    /**
+     * {@code true} only on Leaf with {@code async-chunk-send.enabled: true}.
+     * On Paper, Purpur, Folia, etc. this is always {@code false} and chunk-send uses the stock ThreadLocal path.
+     */
     public static boolean isActive() {
         if (!LEAF_PRESENT) {
             return false;
@@ -39,6 +42,11 @@ public final class LeafAsyncChunkSendCompat {
         } catch (ReflectiveOperationException e) {
             return false;
         }
+    }
+
+    /** {@code true} when the Leaf-only code paths in {@code ChunkPacketBlockControllerAntiXray} may run. */
+    public static boolean useLeafAsyncChunkSendPath() {
+        return isActive();
     }
 
     public static void logStatus(Logger logger) {

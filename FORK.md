@@ -120,7 +120,9 @@ On [Leaf](https://github.com/Winds-Studio/Leaf), enabling **`async-chunk-send`**
 - FIFO queue from **`shouldModify`** (server thread) to **`getChunkPacketInfo`** (async thread), keyed by chunk column.
 - **`ChunkPacketBlockControllerAntiXray#leaf$modifyBlocks`** runs obfuscation inline on Leaf’s chunk-send thread (same approach as Paper’s Leaf patch).
 
-Pure Paper / Leaf with async chunk send disabled: unchanged ThreadLocal + **`modifyBlocks`** path.
+**Paper, Purpur, Folia, Canvas, etc.:** `LeafAsyncChunkSendCompat.isActive()` is always **`false`** (Leaf class absent). Chunk send uses the original **`ThreadLocal`** + **`modifyBlocks`** path only; the FIFO queue and **`leaf$modifyBlocks`** are never used (`leaf$modifyBlocks` is not called by stock Paper).
+
+**Leaf with async chunk send disabled:** same as Paper (ThreadLocal + **`modifyBlocks`**).
 
 ---
 

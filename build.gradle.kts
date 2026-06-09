@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "com.vanillage.raytraceantixray"
-version = "1.17.2"
+version = "1.17.3"
 description = "Paper plugin for server-side async multithreaded ray tracing to hide ores that are exposed to air using Paper Anti-Xray engine-mode 1."
 
 data class PaperTarget(

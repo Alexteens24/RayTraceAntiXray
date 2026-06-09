@@ -240,7 +240,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
     public boolean shouldModify(ServerPlayer player, LevelChunk chunk) {
         boolean willModify = !usePermission || !player.getBukkitEntity().hasPermission("paper.antixray.bypass");
         if (willModify) {
-            if (LeafAsyncChunkSendCompat.isActive()) {
+            if (LeafAsyncChunkSendCompat.useLeafAsyncChunkSendPath()) {
                 LeafAsyncChunkSendCompat.onShouldModify(player, chunk);
             } else {
                 ANTIXRAY_CHUNK_SEND_TARGET.set(player);
@@ -255,7 +255,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
     public ChunkPacketInfoAntiXray getChunkPacketInfo(ClientboundLevelChunkWithLightPacket chunkPacket, LevelChunk chunk) {
         // Return a new instance to collect data and objects in the right state while creating the chunk packet for thread safe access later
         ServerPlayer targetPlayer;
-        if (LeafAsyncChunkSendCompat.isActive()) {
+        if (LeafAsyncChunkSendCompat.useLeafAsyncChunkSendPath()) {
             targetPlayer = LeafAsyncChunkSendCompat.pollTargetPlayer(chunk, plugin.getLogger());
         } else {
             targetPlayer = ANTIXRAY_CHUNK_SEND_TARGET.get();
@@ -285,11 +285,11 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
     }
 
     /**
-     * Leaf {@code async-chunk-send} entry point (not on Paper's compile classpath; invoked by Leaf at runtime).
+     * Leaf {@code async-chunk-send} entry point (not on Paper's compile classpath; never invoked on stock Paper).
      * Obfuscation runs on Leaf's async chunk-send thread, matching Paper's Leaf patch for anti-xray.
      */
     public void leaf$modifyBlocks(ClientboundLevelChunkWithLightPacket chunkPacket, ChunkPacketInfo<BlockState> chunkPacketInfo) {
-        if (!LeafAsyncChunkSendCompat.isActive()) {
+        if (!LeafAsyncChunkSendCompat.useLeafAsyncChunkSendPath()) {
             modifyBlocks(chunkPacket, chunkPacketInfo);
             return;
         }

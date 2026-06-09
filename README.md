@@ -97,7 +97,7 @@ Anonymous usage metrics via [bStats](https://bstats.org/plugin/bukkit/RayTraceAn
 
 ## 4. Build targets (`paperTarget`)
 
-One **`main`** branch; pick the Paper generation at **compile time** with `-PpaperTarget=…`. Each build produces a classified JAR, e.g. `RayTraceAntiXray-1.17.1-26.1.2.jar`.
+One **`main`** branch; pick the Paper generation at **compile time** with `-PpaperTarget=…`. Each build produces a classified JAR, e.g. `RayTraceAntiXray-1.17.3-26.1.2.jar`.
 
 | `paperTarget` | Minecraft / Paper | Java (toolchain) | `plugin.yml` `api-version` |
 |---------------|-------------------|------------------|----------------------------|
