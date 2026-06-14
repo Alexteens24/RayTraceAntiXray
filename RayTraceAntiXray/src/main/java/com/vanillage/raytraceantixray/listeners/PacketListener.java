@@ -1,7 +1,7 @@
 package com.vanillage.raytraceantixray.listeners;
 
-import java.util.HashMap;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import org.bukkit.Location;
@@ -123,7 +123,7 @@ public final class PacketListener extends PacketListenerAbstract {
             plugin.replacePlayerData(uniqueId, playerData);
         }
 
-        chunkBlocks = new ChunkBlocks(chunk, new HashMap<>(chunkBlocks.getBlocks()));
+        chunkBlocks = new ChunkBlocks(chunk, new ConcurrentHashMap<>(chunkBlocks.getBlocks()));
         playerData.getChunks().put(chunkBlocks.getKey(), chunkBlocks);
     }
 

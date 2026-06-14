@@ -2,6 +2,7 @@ package com.vanillage.raytraceantixray.tasks;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Consumer;
@@ -14,12 +15,14 @@ import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import com.vanillage.raytraceantixray.RayTraceAntiXray;
+import com.vanillage.raytraceantixray.antixray.ChunkPacketBlockControllerAntiXray;
 import com.vanillage.raytraceantixray.nms.NmsCompat;
 import com.vanillage.raytraceantixray.data.ChunkBlocks;
 import com.vanillage.raytraceantixray.data.LongWrapper;
 import com.vanillage.raytraceantixray.data.PlayerData;
 import com.vanillage.raytraceantixray.data.Result;
 
+import io.papermc.paper.antixray.ChunkPacketBlockController;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.protocol.Packet;
@@ -77,6 +80,9 @@ public final class UpdateBukkitRunnable extends BukkitRunnable implements Consum
         Queue<Result> results = playerData.getResults();
         Result result;
         List<Packet<?>> packetsToSend = new ArrayList<>();
+        List<Runnable> stateUpdates = new ArrayList<>();
+        ChunkPacketBlockController chunkPacketBlockController = serverLevel.chunkPacketBlockController;
+        boolean rehideBlocks = chunkPacketBlockController instanceof ChunkPacketBlockControllerAntiXray chunkPacketBlockControllerAntiXray && chunkPacketBlockControllerAntiXray.rehideBlocks;
 
         while ((result = results.poll()) != null) {
             ChunkBlocks chunkBlocks = result.getChunkBlocks();
@@ -125,30 +131,47 @@ public final class UpdateBukkitRunnable extends BukkitRunnable implements Consum
                     packetsToSend.add(bePacket);
                 }
             }
+
+            Map<BlockPos, Boolean> blocks = chunkBlocks.getBlocks();
+            BlockPos blockKey = block;
+
+            if (result.isVisible()) {
+                if (rehideBlocks) {
+                    stateUpdates.add(() -> blocks.put(blockKey, false));
+                } else {
+                    stateUpdates.add(() -> blocks.remove(blockKey));
+                }
+            } else {
+                stateUpdates.add(() -> blocks.put(blockKey, true));
+            }
         }
 
         // Send via Connection#send so packets go through the normal outbound pipeline (encoding, debug handlers,
         // compatibility with other plugins). Avoids raw Netty writes that could reorder relative to other outbound traffic.
-        sendPacketsViaConnection(player, packetsToSend);
+        if (sendPacketsViaConnection(player, packetsToSend)) {
+            stateUpdates.forEach(Runnable::run);
+        }
     }
 
     /**
      * Sends {@link ClientboundBlockUpdatePacket} and optional block-entity packets through
      * {@link ServerGamePacketListenerImpl#send(Packet)}, matching normal server behaviour for plugin interoperability.
      */
-    private static void sendPacketsViaConnection(Player player, List<Packet<?>> packets) {
+    private static boolean sendPacketsViaConnection(Player player, List<Packet<?>> packets) {
         if (packets.isEmpty()) {
-            return;
+            return true;
         }
 
         ServerGamePacketListenerImpl connection = ((CraftPlayer) player).getHandle().connection;
 
         if (connection == null || NmsCompat.isConnectionDisconnected(connection)) {
-            return;
+            return false;
         }
 
         for (Packet<?> packet : packets) {
             connection.send(packet);
         }
+
+        return true;
     }
 }

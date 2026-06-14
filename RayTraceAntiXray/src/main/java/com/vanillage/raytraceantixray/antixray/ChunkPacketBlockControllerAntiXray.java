@@ -13,13 +13,13 @@ import io.papermc.paper.configuration.WorldConfiguration;
 import io.papermc.paper.configuration.type.EngineMode;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.IntSupplier;
@@ -411,7 +411,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
                 return (int) ((Integer.toUnsignedLong(state) * numberOfBlocks) >>> 32);
             }
         };
-        HashMap<BlockPos, Boolean> blocks = new HashMap<>();
+        ConcurrentHashMap<BlockPos, Boolean> blocks = new ConcurrentHashMap<>();
         HashSet<BlockPos> blockEntities = new HashSet<>();
 
         for (int chunkSectionIndex = 0; chunkSectionIndex <= maxChunkSectionIndex; chunkSectionIndex++) {

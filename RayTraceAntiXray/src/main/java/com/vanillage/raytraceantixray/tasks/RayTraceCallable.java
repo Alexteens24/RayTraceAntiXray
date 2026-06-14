@@ -43,7 +43,6 @@ public final class RayTraceCallable implements Callable<Void> {
     private final Collection<ChunkBlocks> chunks;
     private final double rayTraceDistance;
     private final double rayTraceDistanceSquared;
-    private final boolean rehideBlocks;
     private final double rehideDistanceSquared;
 
     public RayTraceCallable(RayTraceAntiXray plugin, PlayerData playerData) {
@@ -57,7 +56,6 @@ public final class RayTraceCallable implements Callable<Void> {
             chunks = null;
             rayTraceDistance = 0.;
             rayTraceDistanceSquared = 0.;
-            rehideBlocks = false;
             rehideDistanceSquared = 0.;
             return;
         }
@@ -259,7 +257,6 @@ public final class RayTraceCallable implements Callable<Void> {
         this.chunks = chunks.values();
         rayTraceDistance = chunkPacketBlockControllerAntiXray.rayTraceDistance;
         rayTraceDistanceSquared = rayTraceDistance * rayTraceDistance;
-        rehideBlocks = chunkPacketBlockControllerAntiXray.rehideBlocks;
         double rehideDistance = chunkPacketBlockControllerAntiXray.rehideDistance;
         rehideDistanceSquared = rehideDistance * rehideDistance;
     }
@@ -377,16 +374,9 @@ public final class RayTraceCallable implements Callable<Void> {
                 if (visible) {
                     if (hidden) {
                         results.add(new Result(chunkBlocks, block, true));
-
-                        if (rehideBlocks) {
-                            blockHidden.setValue(false);
-                        } else {
-                            iterator.remove();
-                        }
                     }
                 } else if (!hidden) {
                     results.add(new Result(chunkBlocks, block, false));
-                    blockHidden.setValue(true);
                 }
             }
         }
