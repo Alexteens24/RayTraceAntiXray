@@ -22,7 +22,7 @@ Do **not** use Bukkit `/reload`, PlugMan-style hot plug, or enable/disable the J
 
 ### 1. Download
 
-Get the JAR from [BuiltByBit](https://builtbybit.com/resources/raytraceantixray.24914/) or [build from source](/docs/download).
+Get the JAR from [Modrinth](https://modrinth.com/plugin/forkedraytraceantixray).
 
 ### 2. Install dependencies
 

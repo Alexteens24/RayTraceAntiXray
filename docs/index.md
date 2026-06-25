@@ -11,7 +11,7 @@ hero:
       link: /docs/
     - theme: alt
       text: Download
-      link: /docs/download
+      link: https://modrinth.com/plugin/forkedraytraceantixray
 
 features:
   - title: Engine-mode 1
@@ -30,6 +30,6 @@ features:
     details: Reload config.yml with /raytraceantixray reload without a full restart for tuning changes.
     link: /docs/commands
   - title: Open source
-    details: Fork of stonar96/RayTraceAntiXray. Source on GitHub; see license for JAR redistribution rules.
+    details: Fork of stonar96/RayTraceAntiXray. Download on Modrinth; source on GitHub.
     link: https://github.com/Alexteens24/RayTraceAntiXray
 ---

@@ -1,12 +1,21 @@
 # Download
 
-## Pre-built JAR
+Download the latest release from **[Modrinth — RayTraceAntiXray (fork)](https://modrinth.com/plugin/forkedraytraceantixray)**.
 
-The primary distribution channel is [BuiltByBit — RayTraceAntiXray](https://builtbybit.com/resources/raytraceantixray.24914/).
+Place the `.jar` in your server's `plugins/` folder and follow the [Installation](/docs/installation) guide.
 
-Download the latest `.jar` and place it in your server's `plugins/` folder. See [Installation](/docs/installation) for full setup steps.
+## Supported versions
 
-## Build from source
+| Minecraft / Paper | Server Java |
+|-------------------|-------------|
+| **1.21.11** | 21+ |
+| **26.1.2** (26.x) | 25 recommended |
+
+One universal JAR covers all supported versions — no classifier suffix.
+
+## Building from source
+
+For contributors only — server operators should use Modrinth.
 
 ```bash
 git clone https://github.com/Alexteens24/RayTraceAntiXray.git
@@ -14,21 +23,10 @@ cd RayTraceAntiXray
 ./gradlew build
 ```
 
-The universal plugin JAR is produced at:
+Output: `build/libs/RayTraceAntiXray-<version>.jar`. See [Development](/docs/development) for tests and local servers.
 
-```
-build/libs/RayTraceAntiXray-<version>.jar
-```
+## Credits
 
-One JAR supports **Paper 1.21.11** and **26.1.2** — no classifier suffix.
+Original plugin by **stonar96** — [stonar96/RayTraceAntiXray](https://github.com/stonar96/RayTraceAntiXray).
 
-## Supported versions
-
-| Minecraft / Paper | Server Java | Notes |
-|-------------------|-------------|-------|
-| **1.21.11** | 21+ | `api-version` floor in `plugin.yml` |
-| **26.1.2** (26.x) | 25 recommended | Main NMS compiled against 26.1.2 dev bundle |
-
-## License note
-
-Source is governed by the [MIT license](https://github.com/Alexteens24/RayTraceAntiXray/blob/main/LICENSE). Redistribution of **compiled plugin JARs** intended for direct server use as RayTraceAntiXray is **not** permitted. Use as a library or shaded dependency for other projects is allowed.
+Licensed [MIT](https://github.com/Alexteens24/RayTraceAntiXray/blob/main/LICENSE).
