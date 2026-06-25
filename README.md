@@ -2,6 +2,8 @@
 
 Server-side ray-tracing extension for [Paper Anti-Xray](https://docs.papermc.io/paper/anti-xray/) **engine-mode 1** (`HIDE`). The plugin evaluates line-of-sight from each player to ore blocks that are **exposed to air**—a class Paper does not obfuscate—and updates per-player chunk payloads accordingly.
 
+**Documentation:** https://alexteens24.github.io/RayTraceAntiXray/
+
 ![Demonstration: exposed ores obfuscated until line-of-sight is established](https://user-images.githubusercontent.com/18699205/185815590-4b2efce6-5a26-4579-b079-e9958a454fd0.gif)
 
 ---
