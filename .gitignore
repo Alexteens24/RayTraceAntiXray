@@ -1,6 +1,9 @@
 # Gradle
 .gradle/
 build/
+run1_21_11/
+run26_1_2/
+run/
 
 # Eclipse m2e generated files
 # Eclipse Core

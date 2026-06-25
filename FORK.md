@@ -10,29 +10,27 @@ Upstream goal: RayTraceAntiXray for Paper Anti-Xray **engine-mode 1** with serve
 
 | Area | This fork |
 |------|-----------|
-| Build system | **Gradle** (`build.gradle.kts`, Paperweight), not the older multi-module Maven layout |
-| Git layout | Single **`main`** branch; Paper generation chosen at compile time |
-| Paper API | `paperDevBundle`; version from **`-PpaperTarget=`** (`1.21.11` or `26.1.2`) |
-| Java toolchain | **21** for `paperTarget=1.21.11`; **25** for `paperTarget=26.1.2` |
+| Build system | **Gradle** multi-module (`build.gradle.kts`, Paperweight), not the older multi-module Maven layout |
+| Git layout | Single **`main`** branch; one universal plugin JAR |
+| Paper API | Main code: `paperDevBundle` **26.1.2**; per-version NMS in `paper_1_21_11` / `paper_26_1_2` |
+| Java bytecode | **21** (toolchain 25 for Gradle); runs on Java 21+ servers |
 | Runtime JAR | **`MOJANG_PRODUCTION`** — Mojang-mapped plugin JAR for Paper 1.20.5+ |
-| Output JAR | `RayTraceAntiXray-<version>-<paperTarget>.jar` (Gradle classifier) |
+| Output JAR | `RayTraceAntiXray-<version>.jar` (no per-target classifier) |
 
 ---
 
-## Build targets (`paperTarget`)
+## Multi-NMS (single JAR)
 
-Shared code lives in `RayTraceAntiXray/src/main/java`. Paper-specific NMS is compiled from one of:
+Shared code lives in `RayTraceAntiXray/src/main/java`. Version-specific NMS bindings are in Gradle subprojects:
 
-| `paperTarget` | NMS sources | `NmsCompat` bindings |
-|---------------|-------------|----------------------|
-| **`1.21.11`** | `src/nms/paper-1.21.11/java` | `ChunkPos.asLong`, `chunkPos.x` / `.z`, `processedDisconnect`, … |
-| **`26.1.2`** | `src/nms/paper-26.1.2/java` | `ChunkPos.pack`, `chunkPos.x()` / `.z()`, `isDisconnected()`, … |
+| Subproject | Runtime class | Bindings |
+|------------|---------------|----------|
+| **`paper_1_21_11`** | `nms.paper_1_21_11.NmsCompat1_21_11` | `ChunkPos.asLong`, `chunkPos.x` / `.z`, `processedDisconnect`, … |
+| **`paper_26_1_2`** | `nms.paper_26_1_2.NmsCompat26_1_2` | `ChunkPos.pack`, `chunkPos.x()` / `.z()`, `isDisconnected()`, … |
 
-Main code must call **`NmsCompat`** for these APIs — never `ChunkPos.pack` / `asLong` directly.
+At runtime, `NmsBridge.Holder` detects `ServerBuildInfo.minecraftVersionId()` (fallback `Bukkit.getMinecraftVersion()`) and loads the matching implementation. Main code calls **`NmsCompat`** static methods — never `ChunkPos.pack` / `asLong` directly.
 
 **`BlockState#is(Block)`** is not used; solid-mask init uses **`blockState.getBlock() == Blocks.…`** (works on both targets).
-
-Default local build: `paperTarget=26.1.2` in `gradle.properties`.
 
 ---
 

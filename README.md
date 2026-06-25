@@ -95,26 +95,22 @@ Anonymous usage metrics via [bStats](https://bstats.org/plugin/bukkit/RayTraceAn
 
 ---
 
-## 4. Build targets (`paperTarget`)
+## 4. Supported Paper versions
 
-One **`main`** branch; pick the Paper generation at **compile time** with `-PpaperTarget=…`. Each build produces a classified JAR, e.g. `RayTraceAntiXray-1.17.3-26.1.2.jar`.
+One **`main`** branch; **`./gradlew build`** produces a **single universal JAR**, e.g. `RayTraceAntiXray-1.17.3.jar`, for all supported generations.
 
-| `paperTarget` | Minecraft / Paper | Java (toolchain) | `plugin.yml` `api-version` |
-|---------------|-------------------|------------------|----------------------------|
-| **`1.21.11`** | 1.21.11 | 21 | `1.21.11` |
-| **`26.1.2`** | 26.1.2 (26.x) | 25 | `26.1.2` |
+| Minecraft / Paper | Server Java | Notes |
+|-------------------|-------------|-------|
+| **1.21.11** | 21+ | `api-version` floor in `plugin.yml` |
+| **26.1.2** (26.x) | 25 recommended | Main NMS compiled against 26.1.2 dev bundle |
 
-NMS differences are isolated in `com.vanillage.raytraceantixray.nms.NmsCompat` under `RayTraceAntiXray/src/nms/paper-<target>/` — see [FORK.md § Build targets](FORK.md#build-targets-papertarget).
+Version-specific NMS (`ChunkPos` packing, connection disconnect flag, …) lives in Gradle subprojects `paper_1_21_11` / `paper_26_1_2` and is selected at **runtime** via `NmsBridge` — see [FORK.md § Multi-NMS](FORK.md#multi-nms-single-jar).
 
 ```bash
-# Default (gradle.properties paperTarget=26.1.2)
 ./gradlew build
-
-# Paper 1.21.11 server
-./gradlew build -PpaperTarget=1.21.11
 ```
 
-Install the JAR whose **classifier matches your server** (`-1.21.11` or `-26.1.2`).
+Install **one** JAR on any supported Paper server (no classifier suffix).
 
 ---
 
@@ -123,7 +119,7 @@ Install the JAR whose **classifier matches your server** (`-1.21.11` or `-26.1.2
 1. Install [Paper](https://papermc.io/downloads/paper) for your generation (**1.21.11** or **26.1.2**).
 2. Enable Paper Anti-Xray with **`engine-mode: 1`** ([documentation](https://docs.papermc.io/paper/anti-xray/)).
 3. Install **PacketEvents** (Spigot/Paper build).
-4. Install the matching **RayTraceAntiXray** JAR ([release](https://builtbybit.com/resources/raytraceantixray.24914/) or `./gradlew build -PpaperTarget=…`).
+4. Install **RayTraceAntiXray** ([release](https://builtbybit.com/resources/raytraceantixray.24914/) or `./gradlew build` → `build/libs/RayTraceAntiXray-<version>.jar`).
 5. Edit `plugins/RayTraceAntiXray/config.yml` ([defaults](RayTraceAntiXray/src/main/resources/config.yml)).
 6. **Restart the server** after first install or JAR replacement.
 
@@ -173,14 +169,15 @@ Requires `raytraceantixray.command.raytraceantixray`. Full permission tree: `plu
 ## 8. Development
 
 ```bash
-# Unit tests for default paperTarget (excludes @Tag("bench"))
+# Unit tests (excludes @Tag("bench"))
 ./gradlew test
 
-# Other target
-./gradlew test -PpaperTarget=1.21.11
-
 # Section-leap vs pure DDA micro-benchmark (stdout table)
-./gradlew bench --rerun-tasks -PpaperTarget=26.1.2
+./gradlew bench --rerun-tasks
+
+# Local test servers (run-paper)
+./gradlew run1_21_11
+./gradlew run26_1_2
 ```
 
 ---
