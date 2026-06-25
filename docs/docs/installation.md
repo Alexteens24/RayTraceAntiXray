@@ -28,7 +28,7 @@ Get the JAR from [Modrinth](https://modrinth.com/plugin/forkedraytraceantixray).
 
 1. **Stop your server** completely.
 2. Install [PacketEvents](https://modrinth.com/plugin/packetevents) into `plugins/`.
-3. Enable Paper Anti-Xray with **`engine-mode: 1`** in `paper-world-defaults.yml` or per-world config ([Paper docs](https://docs.papermc.io/paper/anti-xray/)).
+3. Enable Paper Anti-Xray with **`engine-mode: 1`** — use the [official Paper preset](https://docs.papermc.io/paper/anti-xray/#engine-mode-1) in `config/paper-world-defaults.yml` (see [Recommended setup](/docs/recommended-configuration)).
 
 ### 3. Install RayTraceAntiXray
 
@@ -37,7 +37,7 @@ Get the JAR from [Modrinth](https://modrinth.com/plugin/forkedraytraceantixray).
 
 ### 4. Configure
 
-Edit `plugins/RayTraceAntiXray/config.yml`. See the [Configuration](/docs/configuration) page for all options.
+Edit `plugins/RayTraceAntiXray/config.yml`. Copy-paste presets from [Recommended setup](/docs/recommended-configuration) (Paper Anti-Xray + plugin). See [Configuration](/docs/configuration) for every key.
 
 On first run the plugin also writes `plugins/RayTraceAntiXray/README.txt` with command and permission reference.
 
@@ -47,7 +47,7 @@ Run `/plugins` in console. RayTraceAntiXray should appear with a green status al
 
 ## Tuning reference
 
-Recommended settings for production servers: [stonar96's settings gist](https://gist.github.com/stonar96/69ca0311392188b7ac2ece226286147f).
+Production presets (Paper + plugin): [Recommended setup](/docs/recommended-configuration).
 
 ## Updating
 

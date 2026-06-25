@@ -8,7 +8,9 @@
 
 <DocCard icon="📥" title="Installation" link="/docs/installation" desc="Requirements, Paper Anti-Xray setup, PacketEvents, and first-run steps." />
 
-<DocCard icon="⚙️" title="Configuration" link="/docs/configuration" desc="Interactive reference for config.yml — global and per-world settings." />
+<DocCard icon="📋" title="Recommended setup" link="/docs/recommended-configuration" desc="Copy-paste Paper Anti-Xray and plugin config presets for production." />
+
+<DocCard icon="⚙️" title="Configuration" link="/docs/configuration" desc="Interactive reference for every config.yml key." />
 
 <DocCard icon="⌨️" title="Commands" link="/docs/commands" desc="reload and timings subcommands with permission nodes." />
 

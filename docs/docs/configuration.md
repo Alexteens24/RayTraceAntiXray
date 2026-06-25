@@ -2,7 +2,9 @@
 
 The `config.yml` file lives in `plugins/RayTraceAntiXray/`. Global scheduler settings are under `settings.anti-xray`; per-world overrides live under `world-settings.<world>.anti-xray` (all worlds inherit from `default`).
 
-Click any option or category to view additional information.
+**New to the plugin?** Start with [Recommended setup](/docs/recommended-configuration) — copy-paste Paper Anti-Xray + plugin presets for production.
+
+Click any option or category below to view additional information.
 
 ::: tip Apply changes without a restart
 After editing `config.yml`, run <code>/raytraceantixray reload</code> to apply changes. A full restart is still required for JAR or dependency updates.

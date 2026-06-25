@@ -43,6 +43,7 @@ export default defineConfig({
           { text: 'Commands', link: '/docs/commands' },
           { text: 'Permissions', link: '/docs/permissions' },
           { text: 'Configuration', link: '/docs/configuration' },
+          { text: 'Recommended setup', link: '/docs/recommended-configuration' },
         ],
       },
       {

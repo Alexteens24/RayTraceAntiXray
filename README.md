@@ -25,7 +25,7 @@ Fork of [stonar96/RayTraceAntiXray](https://github.com/stonar96/RayTraceAntiXray
 
 Full setup, configuration, commands, and troubleshooting: **[documentation site](https://alexteens24.github.io/RayTraceAntiXray/)**.
 
-Recommended tuning: [stonar96's settings gist](https://gist.github.com/stonar96/69ca0311392188b7ac2ece226286147f).
+Recommended tuning: [docs — Recommended setup](https://alexteens24.github.io/RayTraceAntiXray/docs/recommended-configuration).
 
 ## Development
 
