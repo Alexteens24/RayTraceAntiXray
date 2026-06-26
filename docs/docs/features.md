@@ -47,7 +47,7 @@ With `rehide-blocks: true`, blocks that leave the visible set (subject to `rehid
 
 **Runtime dependencies:** Paper (Folia-capable builds), [PacketEvents](https://modrinth.com/plugin/packetevents), Paper Anti-Xray **engine-mode 1**.
 
-Anonymous usage metrics via [bStats](https://bstats.org/plugin/bukkit/RayTraceAntiXray/31528). Opt out with `plugins/bStats/config.yml`.
+Anonymous usage metrics via [bStats](https://bstats.org/plugin/bukkit/RayTraceAntiXray/31528) and [FastStats](https://faststats.dev). Opt out of bStats with `plugins/bStats/config.yml`; opt out of FastStats with the JVM flag `-Dfaststats.enabled=false`.
 
 ## Limitations
 

@@ -22,12 +22,14 @@ repositories {
     mavenCentral()
     maven("https://repo.papermc.io/repository/maven-public/")
     maven("https://repo.codemc.io/repository/maven-releases/")
+    maven("https://repo.faststats.dev/releases")
 }
 
 dependencies {
     paperweight.paperDevBundle("26.1.2.build.65-stable")
     compileOnly("com.github.retrooper:packetevents-spigot:2.12.1")
     implementation("org.bstats:bstats-bukkit:3.2.1")
+    implementation("dev.faststats.metrics:bukkit:0.27.1")
 
     runtimeOnly(project(":paper_1_21_11"))
     runtimeOnly(project(":paper_26_1_2"))
@@ -118,9 +120,11 @@ tasks.shadowJar {
     dependencies {
         include(dependency("org.bstats:bstats-bukkit:3.2.1"))
         include(dependency("org.bstats:bstats-base:3.2.1"))
+        include(dependency("dev.faststats.metrics:bukkit:0.27.1"))
     }
 
     relocate("org.bstats", project.group.toString())
+    relocate("dev.faststats", project.group.toString())
 
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }

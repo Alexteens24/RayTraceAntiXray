@@ -45,9 +45,12 @@ Ray tracing cost scales with:
 
 Reduce these values or dedicate spare CPU cores so the main thread stays responsive. Enable timings with `/raytraceantixray timings on` to inspect per-tick batch duration in the console.
 
-## bStats opt-out
+## Metrics opt-out
 
-Anonymous usage metrics are sent via [bStats](https://bstats.org/plugin/bukkit/RayTraceAntiXray/31528). Opt out in `plugins/bStats/config.yml` on the server.
+Anonymous usage metrics are sent via [bStats](https://bstats.org/plugin/bukkit/RayTraceAntiXray/31528) and [FastStats](https://faststats.dev).
+
+- **bStats:** opt out in `plugins/bStats/config.yml` on the server.
+- **FastStats:** disable transmission with the JVM flag `-Dfaststats.enabled=false` when starting the server (see [FastStats system properties](https://docs.faststats.dev/java/system-properties)).
 
 ## Getting help
 

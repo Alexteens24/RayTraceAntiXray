@@ -112,6 +112,12 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
     public void onDisable() {
         Throwable throwable = null;
 
+        try {
+            RayTraceAntiXrayMetrics.shutdown();
+        } catch (Throwable t) {
+            throwable = mergeThrowables(throwable, t);
+        }
+
         if (packetEventsChunkListener != null) {
             try {
                 PacketEvents.getAPI().getEventManager().unregisterListener(packetEventsChunkListener);
