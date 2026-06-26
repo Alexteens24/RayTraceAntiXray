@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "com.vanillage.raytraceantixray"
-version = "1.17.4"
+version = "1.17.5"
 description = "Paper plugin for server-side async multithreaded ray tracing to hide ores that are exposed to air using Paper Anti-Xray engine-mode 1."
 
 java {
@@ -121,6 +121,8 @@ tasks.shadowJar {
         include(dependency("org.bstats:bstats-bukkit:3.2.1"))
         include(dependency("org.bstats:bstats-base:3.2.1"))
         include(dependency("dev.faststats.metrics:bukkit:0.27.1"))
+        include(dependency("dev.faststats.metrics:core:0.27.1"))
+        include(dependency("dev.faststats.metrics:config:0.27.1"))
     }
 
     relocate("org.bstats", project.group.toString())
