@@ -58,9 +58,9 @@ public final class WorldListener implements Listener {
                 boolean sectionLeap = config.getBoolean("world-settings." + worldName + ".anti-xray.section-leap", config.getBoolean("world-settings.default.anti-xray.section-leap", false));
                 int maxRayTraceBlockCountPerChunk = Math.max(config.getInt("world-settings." + worldName + ".anti-xray.max-ray-trace-block-count-per-chunk", config.getInt("world-settings.default.anti-xray.max-ray-trace-block-count-per-chunk")), 0);
                 List<String> rayTraceBlocks = config.getList("world-settings." + worldName + ".anti-xray.ray-trace-blocks", config.getList("world-settings.default.anti-xray.ray-trace-blocks")).stream().filter(Objects::nonNull).map(String::valueOf).collect(Collectors.toList());
-                controller = new ChunkPacketBlockControllerAntiXray(plugin, rayTraceThirdPerson, rayTraceDistance, rehideBlocks, rehideDistance, sectionLeap, maxRayTraceBlockCountPerChunk, rayTraceBlocks.isEmpty() ? null : rayTraceBlocks, serverLevel, MinecraftServer.getServer().executor);
+                controller = new ChunkPacketBlockControllerAntiXray(plugin, rayTraceThirdPerson, rayTraceDistance, rehideBlocks, rehideDistance, sectionLeap, maxRayTraceBlockCountPerChunk, rayTraceBlocks.isEmpty() ? null : rayTraceBlocks, serverLevel, getServerExecutor(MinecraftServer.getServer()));
             } else {
-                controller = new io.papermc.paper.antixray.ChunkPacketBlockControllerAntiXray(serverLevel, MinecraftServer.getServer().executor);
+                controller = new io.papermc.paper.antixray.ChunkPacketBlockControllerAntiXray(serverLevel, getServerExecutor(MinecraftServer.getServer()));
             }
         } else {
             controller = ChunkPacketBlockController.NO_OPERATION_INSTANCE;
@@ -79,6 +79,21 @@ public final class WorldListener implements Listener {
             Field field = Level.class.getDeclaredField("chunkPacketBlockController");
             field.setAccessible(true);
             field.set(serverLevel, controller);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * Paper 26.2 changed classloader structure so that even public fields on NMS classes
+     * are blocked by the Java module system when accessed from a plugin classloader.
+     * Using reflection + setAccessible bypasses this restriction.
+     */
+    private static java.util.concurrent.Executor getServerExecutor(MinecraftServer server) {
+        try {
+            Field field = MinecraftServer.class.getDeclaredField("executor");
+            field.setAccessible(true);
+            return (java.util.concurrent.Executor) field.get(server);
         } catch (NoSuchFieldException | IllegalAccessException e) {
             throw new RuntimeException(e);
         }
