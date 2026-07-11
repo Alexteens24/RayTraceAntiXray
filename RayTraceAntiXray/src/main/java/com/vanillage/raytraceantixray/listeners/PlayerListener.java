@@ -69,6 +69,7 @@ public final class PlayerListener implements Listener {
             return;
         }
 
+        plugin.registerPendingChunkBlocksFor(player.getUniqueId());
         PlayerData playerData = new PlayerData(RayTraceAntiXray.getLocations(player, new VectorialLocation(player.getEyeLocation())));
         playerData.setCallable(new RayTraceCallable(plugin, playerData));
         plugin.getPlayerData().put(player.getUniqueId(), playerData);

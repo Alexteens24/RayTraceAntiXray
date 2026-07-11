@@ -537,7 +537,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             ServerPlayer targetPlayer = chunkPacketInfoAntiXray.getTargetPlayer();
             if (targetPlayer != null) {
                 plugin.enqueuePendingChunkBlocks(targetPlayer.getUUID(), NmsCompat.chunkX(chunk.getPos()), NmsCompat.chunkZ(chunk.getPos()), chunkBlocks);
-            } else {
+            } else if (LeafAsyncChunkSendCompat.shouldLogMissingTargetWarning()) {
                 plugin.getLogger().warning("RayTraceAntiXray: chunk packet has no ServerPlayer context; ray tracing may miss this chunk (Paper should call shouldModify before getChunkPacketInfo).");
             }
         }
