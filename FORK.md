@@ -59,8 +59,8 @@ At runtime, `NmsBridge.Holder` detects `ServerBuildInfo.minecraftVersionId()` (f
 
 ## Block updates to clients (`UpdateBukkitRunnable`)
 
-- Batches multiple **`ClientboundBlockUpdatePacket`** instances (and optional block-entity packets) into **one** Netty event-loop task: sequential **`write`**, then a **single `flush`**, instead of per-packet **`writeAndFlush`** from the game thread.
-- The Netty runnable only writes when **`conn.connection.channel`** is the **same instance** as the channel used to schedule—avoids writing on the wrong pipeline / wrong thread.
+- Collects **`ClientboundBlockUpdatePacket`** instances (and optional block-entity packets) for one player update and sends them through **`ServerGamePacketListenerImpl#send`**, preserving Paper's normal outbound pipeline.
+- Hidden/visible state is committed only after the connection passes its disconnect check and all packets have been submitted.
 
 ---
 
@@ -115,10 +115,13 @@ On [Leaf](https://github.com/Winds-Studio/Leaf), enabling **`async-chunk-send`**
 
 **`LeafAsyncChunkSendCompat`** (runtime-detected via reflection, no Leaf compile dependency):
 
-- FIFO queue from **`shouldModify`** (server thread) to **`getChunkPacketInfo`** (async thread), keyed by chunk column.
-- **`ChunkPacketBlockControllerAntiXray#leaf$modifyBlocks`** runs obfuscation inline on Leaf’s chunk-send thread (same approach as Paper’s Leaf patch).
+- Target queues from **`shouldModify`** (server thread) to **`getChunkPacketInfo`** (async thread), keyed by dimension and chunk column so an out-of-order chunk cannot consume another chunk's player context.
+- Multiple sends of the same dimension/chunk remain FIFO. At startup the plugin verifies Leaf's executor is a `ThreadPoolExecutor` with exactly one worker, which is the ordering model used by supported Leaf 1.21.11 and 26.1.2 builds.
+- If Leaf enables async chunk send with an unknown or multi-worker executor, chunk association fails closed and a startup error instructs the operator to disable `async-chunk-send`; Paper Anti-Xray obfuscation still runs, but ray-trace reveal tracking is not assigned to a possibly wrong player.
+- Player quit, config reload, and plugin disable remove pending player targets. Empty per-chunk queues are removed atomically.
+- **`ChunkPacketBlockControllerAntiXray#leaf$modifyBlocks`** runs obfuscation inline on Leaf's chunk-send thread (same approach as Paper's Leaf patch).
 
-**Paper, Purpur, Folia, Canvas, etc.:** `LeafAsyncChunkSendCompat.isActive()` is always **`false`** (Leaf class absent). Chunk send uses the original **`ThreadLocal`** + **`modifyBlocks`** path only; the FIFO queue and **`leaf$modifyBlocks`** are never used (`leaf$modifyBlocks` is not called by stock Paper).
+**Paper, Purpur, Folia, Canvas, etc.:** `LeafAsyncChunkSendCompat.isActive()` is always **`false`** (Leaf class absent). Chunk send uses the original **`ThreadLocal`** + **`modifyBlocks`** path only; the keyed target queues and **`leaf$modifyBlocks`** are never used (`leaf$modifyBlocks` is not called by stock Paper).
 
 **Leaf with async chunk send disabled:** same as Paper (ThreadLocal + **`modifyBlocks`**).
 

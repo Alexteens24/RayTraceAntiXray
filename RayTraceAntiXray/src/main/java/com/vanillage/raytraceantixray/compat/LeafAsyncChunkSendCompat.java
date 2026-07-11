@@ -1,107 +1,166 @@
 package com.vanillage.raytraceantixray.compat;
 
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.lang.reflect.Field;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 
 import com.vanillage.raytraceantixray.nms.NmsCompat;
-
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.chunk.LevelChunk;
 
-/**
- * Runtime compatibility for Leaf's {@code async-chunk-send} feature.
- * <p>
- * When enabled, Leaf builds {@code ClientboundLevelChunkWithLightPacket} on a dedicated async thread
- * and calls {@code leaf$modifyBlocks} instead of {@code modifyBlocks}. {@code shouldModify} still runs on
- * the server thread, so Paper's ThreadLocal player hand-off does not work; we use a FIFO queue instead.
- */
+/** Runtime compatibility for Leaf's {@code async-chunk-send} feature. */
 public final class LeafAsyncChunkSendCompat {
-
-    private static final String ASYNC_CHUNK_SEND_CLASS = "org.dreeam.leaf.config.modules.async.AsyncChunkSend";
-    private static final boolean LEAF_PRESENT = classPresent(ASYNC_CHUNK_SEND_CLASS);
-
-    private static final ConcurrentLinkedQueue<PendingChunkTarget> PENDING_TARGETS = new ConcurrentLinkedQueue<>();
+    private static final String CONFIG_CLASS = "org.dreeam.leaf.config.modules.async.AsyncChunkSend";
+    private static final String EXECUTOR_CLASS = "org.dreeam.leaf.async.chunk.AsyncChunkSend";
+    private static final long WARNING_INTERVAL_NANOS = TimeUnit.SECONDS.toNanos(60L);
+    private static final boolean LEAF_PRESENT = classPresent(CONFIG_CLASS);
+    private static final ConcurrentHashMap<UUID, Boolean> REGISTERED_PLAYERS = new ConcurrentHashMap<>();
+    private static final LeafChunkTargetStore<PendingChunkTarget> PENDING_TARGETS = new LeafChunkTargetStore<>();
+    private static final AtomicLong LAST_MISSING_TARGET_WARNING = new AtomicLong(Long.MIN_VALUE);
+    private static volatile RuntimeState runtimeState = LEAF_PRESENT ? RuntimeState.UNINITIALIZED : RuntimeState.ABSENT;
 
     private LeafAsyncChunkSendCompat() {
+    }
+
+    /** Detects Leaf configuration and validates the ordering guarantee used by the target queues. */
+    public static synchronized void initialize(Logger logger) {
+        runtimeState = detectRuntimeState();
+        switch (runtimeState) {
+            case ABSENT -> {
+                return;
+            }
+            case DISABLED -> logger.info("Leaf detected; async-chunk-send is disabled (standard Paper chunk-send path).");
+            case SUPPORTED_SINGLE_THREAD -> logger.info("Leaf async-chunk-send is enabled with a single worker; using keyed chunk-send target queues.");
+            case UNSUPPORTED_WORKER -> logger.severe("Leaf async-chunk-send uses an unsupported or unrecognized worker model. "
+                + "Ray-trace chunk association is disabled to avoid assigning chunk data to the wrong player; "
+                + "disable async-chunk-send in Leaf configuration.");
+            case UNINITIALIZED -> throw new IllegalStateException("Leaf runtime detection did not initialize");
+        }
     }
 
     public static boolean isLeafPresent() {
         return LEAF_PRESENT;
     }
 
-    /**
-     * {@code true} only on Leaf with {@code async-chunk-send.enabled: true}.
-     * On Paper, Purpur, Folia, etc. this is always {@code false} and chunk-send uses the stock ThreadLocal path.
-     */
+    /** True when Leaf's asynchronous constructor path is enabled, including fail-closed unsupported runtimes. */
     public static boolean isActive() {
-        if (!LEAF_PRESENT) {
-            return false;
-        }
-        try {
-            return Class.forName(ASYNC_CHUNK_SEND_CLASS).getField("enabled").getBoolean(null);
-        } catch (ReflectiveOperationException e) {
-            return false;
-        }
+        RuntimeState state = runtimeState;
+        return state == RuntimeState.SUPPORTED_SINGLE_THREAD || state == RuntimeState.UNSUPPORTED_WORKER;
     }
 
-    /** {@code true} when the Leaf-only code paths in {@code ChunkPacketBlockControllerAntiXray} may run. */
+    /** True when the Leaf-only {@code leaf$modifyBlocks} path may run. */
     public static boolean useLeafAsyncChunkSendPath() {
         return isActive();
     }
 
-    public static void logStatus(Logger logger) {
-        if (!LEAF_PRESENT) {
-            return;
-        }
-        if (isActive()) {
-            logger.info("Leaf async-chunk-send is enabled; using Leaf async chunk-send compatibility layer.");
-        } else {
-            logger.info("Leaf detected; async-chunk-send is disabled (standard Paper chunk-send path).");
-        }
+    /** True only when target association is backed by Leaf's verified single-worker ordering. */
+    public static boolean canAssociateTargets() {
+        return runtimeState == RuntimeState.SUPPORTED_SINGLE_THREAD;
     }
 
-    /**
-     * Called from {@code shouldModify} on the server thread when obfuscation will run for this send.
-     */
+    public static void registerPlayer(UUID playerId) {
+        REGISTERED_PLAYERS.putIfAbsent(playerId, Boolean.TRUE);
+    }
+
+    public static void unregisterPlayer(UUID playerId) {
+        REGISTERED_PLAYERS.remove(playerId);
+        PENDING_TARGETS.removeIf(target -> target.playerId().equals(playerId));
+    }
+
+    public static void shutdown() {
+        REGISTERED_PLAYERS.clear();
+        PENDING_TARGETS.clear();
+        LAST_MISSING_TARGET_WARNING.set(Long.MIN_VALUE);
+    }
+
+    /** Called from {@code shouldModify} before Leaf submits construction to its async chunk worker. */
     public static void onShouldModify(ServerPlayer player, LevelChunk chunk) {
-        if (!isActive()) {
+        UUID playerId = player.getUUID();
+        if (!canAssociateTargets()) {
             return;
         }
-        PENDING_TARGETS.add(new PendingChunkTarget(player, NmsCompat.chunkX(chunk.getPos()), NmsCompat.chunkZ(chunk.getPos())));
+        REGISTERED_PLAYERS.computeIfPresent(playerId, (ignored, registered) -> {
+            PENDING_TARGETS.add(chunk.getLevel().dimension(), NmsCompat.chunkPosKey(chunk.getPos()), new PendingChunkTarget(playerId, player));
+            return registered;
+        });
     }
 
-    /**
-     * Resolves the recipient player for {@code getChunkPacketInfo} on Leaf's async chunk-send thread.
-     */
+    /** Resolves the recipient without consuming targets queued for another dimension or chunk. */
     public static ServerPlayer pollTargetPlayer(LevelChunk chunk, Logger logger) {
-        if (!isActive()) {
+        if (!canAssociateTargets()) {
             return null;
         }
-        int chunkX = NmsCompat.chunkX(chunk.getPos());
-        int chunkZ = NmsCompat.chunkZ(chunk.getPos());
-        PendingChunkTarget pending;
-        while ((pending = PENDING_TARGETS.poll()) != null) {
-            if (pending.chunkX() == chunkX && pending.chunkZ() == chunkZ) {
-                return pending.player();
-            }
-            logger.warning("RayTraceAntiXray: Leaf async-chunk-send target queue desync "
-                + "(expected chunk " + chunkX + "," + chunkZ + " but got " + pending.chunkX() + "," + pending.chunkZ() + "); "
-                + "ray tracing may miss blocks for that chunk.");
+        PendingChunkTarget target = PENDING_TARGETS.poll(chunk.getLevel().dimension(), NmsCompat.chunkPosKey(chunk.getPos()));
+        if (target != null) {
+            return target.player();
         }
-        logger.warning("RayTraceAntiXray: no Leaf async-chunk-send target for chunk " + chunkX + "," + chunkZ
+        warnMissingTarget(logger, "RayTraceAntiXray: no Leaf async-chunk-send target for chunk "
+            + NmsCompat.chunkX(chunk.getPos()) + "," + NmsCompat.chunkZ(chunk.getPos())
             + "; ray tracing may miss this chunk.");
         return null;
+    }
+
+    /** Rate-limits generic missing-context warnings on the normal Paper hand-off path as well. */
+    public static boolean shouldLogMissingTargetWarning() {
+        if (runtimeState == RuntimeState.UNSUPPORTED_WORKER) {
+            return false;
+        }
+        long now = System.nanoTime();
+        long previous = LAST_MISSING_TARGET_WARNING.get();
+        return (previous == Long.MIN_VALUE || now - previous >= WARNING_INTERVAL_NANOS)
+            && LAST_MISSING_TARGET_WARNING.compareAndSet(previous, now);
+    }
+
+    private static void warnMissingTarget(Logger logger, String message) {
+        if (shouldLogMissingTargetWarning()) {
+            logger.warning(message);
+        }
+    }
+
+    private static RuntimeState detectRuntimeState() {
+        if (!LEAF_PRESENT) {
+            return RuntimeState.ABSENT;
+        }
+        try {
+            if (!Class.forName(CONFIG_CLASS).getField("enabled").getBoolean(null)) {
+                return RuntimeState.DISABLED;
+            }
+            Field poolField = Class.forName(EXECUTOR_CLASS).getField("POOL");
+            return isVerifiedSingleThreadExecutor(poolField.get(null))
+                ? RuntimeState.SUPPORTED_SINGLE_THREAD
+                : RuntimeState.UNSUPPORTED_WORKER;
+        } catch (ReflectiveOperationException | LinkageError e) {
+            return RuntimeState.UNSUPPORTED_WORKER;
+        }
+    }
+
+    static boolean isVerifiedSingleThreadExecutor(Object executor) {
+        return executor instanceof ThreadPoolExecutor pool
+            && pool.getCorePoolSize() == 1
+            && pool.getMaximumPoolSize() == 1;
     }
 
     private static boolean classPresent(String name) {
         try {
             Class.forName(name);
             return true;
-        } catch (ClassNotFoundException e) {
+        } catch (ClassNotFoundException | LinkageError e) {
             return false;
         }
     }
 
-    private record PendingChunkTarget(ServerPlayer player, int chunkX, int chunkZ) {
+    enum RuntimeState {
+        UNINITIALIZED,
+        ABSENT,
+        DISABLED,
+        SUPPORTED_SINGLE_THREAD,
+        UNSUPPORTED_WORKER
+    }
+
+    private record PendingChunkTarget(UUID playerId, ServerPlayer player) {
     }
 }

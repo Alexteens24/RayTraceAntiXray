@@ -1,6 +1,7 @@
 # Gradle
 .gradle/
 build/
+bin/
 run1_21_11/
 run26_1_2/
 run/

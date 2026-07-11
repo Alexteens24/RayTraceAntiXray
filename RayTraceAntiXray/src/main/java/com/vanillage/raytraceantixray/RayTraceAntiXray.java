@@ -3,7 +3,6 @@ package com.vanillage.raytraceantixray;
 import java.io.File;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -54,8 +53,7 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
     private boolean folia = false;
     private volatile boolean running = false;
     private volatile boolean timingsEnabled = false;
-    /** Pending obfuscated chunk payloads keyed by player then chunk column (see {@link #enqueuePendingChunkBlocks}). */
-    private final ConcurrentMap<UUID, ConcurrentMap<Long, ConcurrentLinkedQueue<ChunkBlocks>>> pendingChunkBlocksByPlayer = new ConcurrentHashMap<>();
+    private final PendingChunkBlocksStore<ChunkBlocks> pendingChunkBlocks = new PendingChunkBlocksStore<>();
     private final ConcurrentMap<UUID, PlayerData> playerData = new ConcurrentHashMap<>();
     private ExecutorService executorService;
     private ScheduledTask rayTraceScheduledTask;
@@ -84,6 +82,7 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
             folia = false;
         }
 
+        LeafAsyncChunkSendCompat.initialize(getLogger());
         running = true;
         RayTraceAntiXrayMetrics.register(this, folia, config);
         startRayTraceSchedulerFromConfig(config);
@@ -104,7 +103,6 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
         PacketEvents.getAPI().getEventManager().registerListener(packetEventsChunkListener);
         // registerCommands();
         getCommand("raytraceantixray").setExecutor(new RayTraceAntiXrayTabExecutor(this));
-        LeafAsyncChunkSendCompat.logStatus(getLogger());
         getLogger().info(getPluginMeta().getDisplayName() + " enabled");
     }
 
@@ -150,7 +148,8 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
         }
 
         try {
-            pendingChunkBlocksByPlayer.clear();
+            pendingChunkBlocks.clear();
+            LeafAsyncChunkSendCompat.shutdown();
             for (PlayerData pd : playerData.values()) {
                 if (pd.getBlockUpdateTask() != null) {
                     pd.getBlockUpdateTask().cancel();
@@ -255,25 +254,21 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
     }
 
     public void enqueuePendingChunkBlocks(UUID playerId, int chunkX, int chunkZ, ChunkBlocks chunkBlocks) {
-        long chunkKey = NmsCompat.chunkKey(chunkX, chunkZ);
-        pendingChunkBlocksByPlayer
-            .computeIfAbsent(playerId, k -> new ConcurrentHashMap<>())
-            .computeIfAbsent(chunkKey, k -> new ConcurrentLinkedQueue<>())
-            .add(chunkBlocks);
+        pendingChunkBlocks.enqueue(playerId, NmsCompat.chunkKey(chunkX, chunkZ), chunkBlocks);
     }
 
     public ChunkBlocks pollPendingChunkBlocks(UUID playerId, int chunkX, int chunkZ) {
-        long chunkKey = NmsCompat.chunkKey(chunkX, chunkZ);
-        ConcurrentMap<Long, ConcurrentLinkedQueue<ChunkBlocks>> byChunk = pendingChunkBlocksByPlayer.get(playerId);
-        if (byChunk == null) {
-            return null;
-        }
-        ConcurrentLinkedQueue<ChunkBlocks> queue = byChunk.get(chunkKey);
-        return queue != null ? queue.poll() : null;
+        return pendingChunkBlocks.poll(playerId, NmsCompat.chunkKey(chunkX, chunkZ));
+    }
+
+    public void registerPendingChunkBlocksFor(UUID playerId) {
+        pendingChunkBlocks.registerPlayer(playerId);
+        LeafAsyncChunkSendCompat.registerPlayer(playerId);
     }
 
     public void clearPendingChunkBlocksFor(UUID playerId) {
-        pendingChunkBlocksByPlayer.remove(playerId);
+        pendingChunkBlocks.unregisterPlayer(playerId);
+        LeafAsyncChunkSendCompat.unregisterPlayer(playerId);
     }
 
     public ConcurrentMap<UUID, PlayerData> getPlayerData() {
