@@ -1,8 +1,12 @@
 package com.vanillage.raytraceantixray.nms;
 
 import java.lang.reflect.Method;
+import java.util.concurrent.Executor;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayerGameMode;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
 import org.bukkit.Bukkit;
 import org.jetbrains.annotations.Nullable;
 
@@ -18,6 +22,10 @@ public interface NmsBridge {
     int chunkZ(ChunkPos chunkPos);
 
     boolean isConnectionDisconnected(ServerGamePacketListenerImpl connection);
+
+    Executor serverExecutor(MinecraftServer server);
+
+    Level gameModeLevel(ServerPlayerGameMode gameMode);
 
     static NmsBridge get() {
         return Holder.INSTANCE;

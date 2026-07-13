@@ -1,11 +1,17 @@
 package com.vanillage.raytraceantixray.nms.paper_1_21_11;
 
 import com.vanillage.raytraceantixray.nms.NmsBridge;
+import java.lang.reflect.Field;
+import java.util.concurrent.Executor;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayerGameMode;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
 
 /** Paper 1.21.11 NMS bindings (loaded at runtime via {@link NmsBridge}). */
 public final class NmsCompat1_21_11 implements NmsBridge {
+    private static final Field GAME_MODE_LEVEL_FIELD = findField(ServerPlayerGameMode.class, "level");
 
     @Override
     public long chunkKey(int chunkX, int chunkZ) {
@@ -30,5 +36,29 @@ public final class NmsCompat1_21_11 implements NmsBridge {
     @Override
     public boolean isConnectionDisconnected(ServerGamePacketListenerImpl connection) {
         return connection.processedDisconnect;
+    }
+
+    @Override
+    public Executor serverExecutor(MinecraftServer server) {
+        return server.executor;
+    }
+
+    @Override
+    public Level gameModeLevel(ServerPlayerGameMode gameMode) {
+        try {
+            return (Level) GAME_MODE_LEVEL_FIELD.get(gameMode);
+        } catch (IllegalAccessException e) {
+            throw new IllegalStateException("Cannot read ServerPlayerGameMode.level", e);
+        }
+    }
+
+    private static Field findField(Class<?> owner, String name) {
+        try {
+            Field field = owner.getDeclaredField(name);
+            field.setAccessible(true);
+            return field;
+        } catch (NoSuchFieldException e) {
+            throw new IllegalStateException(owner.getName() + "." + name + " was not found", e);
+        }
     }
 }

@@ -15,4 +15,4 @@ plugins {
 
 rootProject.name = "RayTraceAntiXray"
 
-include("paper_1_21_11", "paper_26_1_2")
+include("paper_1_21_11", "paper_26_1_2", "paper_26_2")
