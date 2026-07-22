@@ -38,12 +38,14 @@ public final class RayTraceCallable implements Callable<Void> {
     private static final BlockState AIR = Blocks.AIR.defaultBlockState();
     private final RayTraceAntiXray plugin;
     private final PlayerData playerData;
+    private final ChunkPacketBlockControllerAntiXray controller;
     private final CachedSectionBlockOcclusionGetter cachedSectionBlockOcclusionGetter;
     private final BlockOcclusionCulling blockOcclusionCulling;
     private final Collection<ChunkBlocks> chunks;
     private final double rayTraceDistance;
     private final double rayTraceDistanceSquared;
     private final double rehideDistanceSquared;
+    private long tracedOcclusionRevision;
 
     public RayTraceCallable(RayTraceAntiXray plugin, PlayerData playerData) {
         this.plugin = plugin;
@@ -51,6 +53,7 @@ public final class RayTraceCallable implements Callable<Void> {
 
         if (!(chunkPacketBlockController instanceof ChunkPacketBlockControllerAntiXray)) {
             this.playerData = null;
+            controller = null;
             cachedSectionBlockOcclusionGetter = null;
             blockOcclusionCulling = null;
             chunks = null;
@@ -64,6 +67,8 @@ public final class RayTraceCallable implements Callable<Void> {
         MutableLongWrapper mutableLongWrapper = new MutableLongWrapper(0L);
         ConcurrentMap<LongWrapper, ChunkBlocks> chunks = playerData.getChunks();
         ChunkPacketBlockControllerAntiXray chunkPacketBlockControllerAntiXray = (ChunkPacketBlockControllerAntiXray) chunkPacketBlockController;
+        controller = chunkPacketBlockControllerAntiXray;
+        tracedOcclusionRevision = controller.getOcclusionRevision();
         boolean[] solidGlobal = chunkPacketBlockControllerAntiXray.solidGlobal;
         cachedSectionBlockOcclusionGetter = new CachedSectionBlockOcclusionGetter() {
             private static final boolean UNLOADED_OCCLUDING = true;
@@ -263,8 +268,28 @@ public final class RayTraceCallable implements Callable<Void> {
 
     @Override
     public Void call() {
+        if (blockOcclusionCulling == null) {
+            return null;
+        }
+
+        VectorialLocation[] locations = playerData.getLocations();
+        if (locations.length == 0) {
+            return null;
+        }
+
+        boolean locationsDirty = playerData.consumeLocationsDirty();
+        boolean chunksDirty = playerData.consumeChunksDirty();
+        long occlusionRevision = controller.getOcclusionRevision();
+        boolean occlusionDirty = tracedOcclusionRevision != occlusionRevision;
+        // Consume before tracing so a failure does not retry the same broken snapshot forever.
+        tracedOcclusionRevision = occlusionRevision;
+
+        if (!locationsDirty && !chunksDirty && !occlusionDirty) {
+            return null;
+        }
+
         try {
-            rayTrace();
+            rayTrace(locations, locationsDirty || occlusionDirty);
         } catch (Throwable t) {
             plugin.getLogger().log(Level.SEVERE, "An error occured on the RayTraceAntiXray tick thread", t);
         }
@@ -272,27 +297,16 @@ public final class RayTraceCallable implements Callable<Void> {
         return null;
     }
 
-    private void rayTrace() {
-        if (blockOcclusionCulling == null) {
-            return;
-        }
-
+    private void rayTrace(VectorialLocation[] locations, boolean forceRayTrace) {
         ConcurrentMap<LongWrapper, ChunkBlocks> chunks = playerData.getChunks();
-        VectorialLocation[] locations = playerData.getLocations();
         Vector playerVector = locations[0].getVector();
         double playerX = playerVector.getX();
         double playerY = playerVector.getY();
         double playerZ = playerVector.getZ();
-        playerVector.setX(playerX - rayTraceDistance);
-        playerVector.setZ(playerZ - rayTraceDistance);
-        int chunkXMin = playerVector.getBlockX() >> 4;
-        int chunkZMin = playerVector.getBlockZ() >> 4;
-        playerVector.setX(playerX + rayTraceDistance);
-        playerVector.setZ(playerZ + rayTraceDistance);
-        int chunkXMax = playerVector.getBlockX() >> 4;
-        int chunkZMax = playerVector.getBlockZ() >> 4;
-        playerVector.setX(playerX);
-        playerVector.setZ(playerZ);
+        int chunkXMin = (int) Math.floor(playerX - rayTraceDistance) >> 4;
+        int chunkZMin = (int) Math.floor(playerZ - rayTraceDistance) >> 4;
+        int chunkXMax = (int) Math.floor(playerX + rayTraceDistance) >> 4;
+        int chunkZMax = (int) Math.floor(playerZ + rayTraceDistance) >> 4;
         Queue<Result> results = playerData.getResults();
 
         for (ChunkBlocks chunkBlocks : this.chunks) {
@@ -300,6 +314,11 @@ public final class RayTraceCallable implements Callable<Void> {
 
             if (chunk == null) {
                 chunks.remove(chunkBlocks.getKey(), chunkBlocks);
+                continue;
+            }
+
+            // Location/occlusion changes invalidate every chunk; otherwise only trace newly received chunks.
+            if (!chunkBlocks.setDirty(false) && !forceRayTrace) {
                 continue;
             }
 

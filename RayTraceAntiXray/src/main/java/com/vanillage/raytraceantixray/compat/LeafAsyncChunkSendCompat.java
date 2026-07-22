@@ -52,7 +52,7 @@ public final class LeafAsyncChunkSendCompat {
         return state == RuntimeState.SUPPORTED_SINGLE_THREAD || state == RuntimeState.UNSUPPORTED_WORKER;
     }
 
-    /** True when the Leaf-only {@code leaf$modifyBlocks} path may run. */
+    /** True when Leaf builds chunk packets asynchronously, regardless of which modifyBlocks hook it calls. */
     public static boolean useLeafAsyncChunkSendPath() {
         return isActive();
     }

@@ -111,17 +111,17 @@ Command permissions and usage strings: **`plugin.yml`**, **`README.txt`** (saved
 
 ## Leaf — `async-chunk-send`
 
-On [Leaf](https://github.com/Winds-Studio/Leaf), enabling **`async-chunk-send`** in `leaf-global.yml` builds chunk packets on a dedicated async thread and calls **`leaf$modifyBlocks`** instead of **`modifyBlocks`**. That breaks Paper’s usual same-thread pairing of **`shouldModify`** → **`getChunkPacketInfo`**.
+On [Leaf](https://github.com/Winds-Studio/Leaf), enabling **`async-chunk-send`** in `leaf-global.yml` builds chunk packets on a dedicated async thread. Leaf 1.21.11 and 26.1.2 call **`leaf$modifyBlocks`**; Leaf 26.2 calls Paper's standard **`modifyBlocks`** entry point from the async worker. Both variants break Paper’s usual same-thread pairing of **`shouldModify`** → **`getChunkPacketInfo`**.
 
 **`LeafAsyncChunkSendCompat`** (runtime-detected via reflection, no Leaf compile dependency):
 
 - Target queues from **`shouldModify`** (server thread) to **`getChunkPacketInfo`** (async thread), keyed by dimension and chunk column so an out-of-order chunk cannot consume another chunk's player context.
-- Multiple sends of the same dimension/chunk remain FIFO. At startup the plugin verifies Leaf's executor is a `ThreadPoolExecutor` with exactly one worker, which is the ordering model used by supported Leaf 1.21.11 and 26.1.2 builds.
+- Multiple sends of the same dimension/chunk remain FIFO. At startup the plugin verifies Leaf's executor is a `ThreadPoolExecutor` with exactly one worker, which is the ordering model used by supported Leaf 1.21.11, 26.1.2, and 26.2 builds.
 - If Leaf enables async chunk send with an unknown or multi-worker executor, chunk association fails closed and a startup error instructs the operator to disable `async-chunk-send`; Paper Anti-Xray obfuscation still runs, but ray-trace reveal tracking is not assigned to a possibly wrong player.
 - Player quit, config reload, and plugin disable remove pending player targets. Empty per-chunk queues are removed atomically.
-- **`ChunkPacketBlockControllerAntiXray#leaf$modifyBlocks`** runs obfuscation inline on Leaf's chunk-send thread (same approach as Paper's Leaf patch).
+- **`leaf$modifyBlocks`** (legacy Leaf) and **`modifyBlocks`** (Leaf 26.2+) share the same inline obfuscation path on Leaf's chunk-send thread.
 
-**Paper, Purpur, Folia, Canvas, etc.:** `LeafAsyncChunkSendCompat.isActive()` is always **`false`** (Leaf class absent). Chunk send uses the original **`ThreadLocal`** + **`modifyBlocks`** path only; the keyed target queues and **`leaf$modifyBlocks`** are never used (`leaf$modifyBlocks` is not called by stock Paper).
+**Paper, Purpur, Folia, Canvas, etc.:** `LeafAsyncChunkSendCompat.isActive()` is always **`false`** (Leaf class absent). Chunk send uses the original **`ThreadLocal`** + **`modifyBlocks`** path only; keyed target queues and Leaf's inline path are never used.
 
 **Leaf with async chunk send disabled:** same as Paper (ThreadLocal + **`modifyBlocks`**).
 

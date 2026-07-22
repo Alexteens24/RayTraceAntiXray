@@ -30,6 +30,8 @@ On [Leaf](https://github.com/Winds-Studio/Leaf), enabling **`async-chunk-send`**
 
 - **Paper, Purpur, Folia, Canvas, etc.:** compat layer is inactive; standard ThreadLocal + `modifyBlocks` path only.
 - **Leaf with async chunk send disabled:** same as stock Paper.
+- **Leaf 1.21.11/26.1.2:** the legacy `leaf$modifyBlocks` hook runs obfuscation inline.
+- **Leaf 26.2+:** Leaf calls standard `modifyBlocks`; RayTraceAntiXray detects the async runtime and routes it to the same inline path.
 
 No extra configuration is required — detection is automatic when the Leaf class is present.
 
@@ -42,6 +44,8 @@ Ray tracing cost scales with:
 - `max-ray-trace-block-count-per-chunk`
 - `ray-trace-distance`
 - `ray-trace-third-person` (significantly more expensive)
+
+RayTraceAntiXray skips ray-trace ticks when the player's position/view, loaded chunk set, and world occlusion state are unchanged. Receiving a new chunk or changing a solid/transparent block invalidates only the required next pass.
 
 Reduce these values or dedicate spare CPU cores so the main thread stays responsive. Enable timings with `/raytraceantixray timings on` to inspect per-tick batch duration in the console.
 
