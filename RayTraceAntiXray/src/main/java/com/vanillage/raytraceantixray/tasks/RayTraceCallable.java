@@ -1,7 +1,9 @@
 package com.vanillage.raytraceantixray.tasks;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map.Entry;
 import java.util.Queue;
 import java.util.concurrent.Callable;
@@ -45,6 +47,7 @@ public final class RayTraceCallable implements Callable<Void> {
     private final double rayTraceDistance;
     private final double rayTraceDistanceSquared;
     private final double rehideDistanceSquared;
+    private long tracedChunksRevision;
     private long tracedOcclusionRevision;
 
     public RayTraceCallable(RayTraceAntiXray plugin, PlayerData playerData) {
@@ -277,12 +280,11 @@ public final class RayTraceCallable implements Callable<Void> {
             return null;
         }
 
-        boolean locationsDirty = playerData.consumeLocationsDirty();
-        boolean chunksDirty = playerData.consumeChunksDirty();
+        boolean locationsDirty = playerData.isLocationsDirty(locations);
+        long chunksRevision = playerData.getChunksRevision();
+        boolean chunksDirty = tracedChunksRevision != chunksRevision;
         long occlusionRevision = controller.getOcclusionRevision();
         boolean occlusionDirty = tracedOcclusionRevision != occlusionRevision;
-        // Consume before tracing so a failure does not retry the same broken snapshot forever.
-        tracedOcclusionRevision = occlusionRevision;
 
         if (!locationsDirty && !chunksDirty && !occlusionDirty) {
             return null;
@@ -290,6 +292,9 @@ public final class RayTraceCallable implements Callable<Void> {
 
         try {
             rayTrace(locations, locationsDirty || occlusionDirty);
+            playerData.markLocationsTraced(locations);
+            tracedChunksRevision = chunksRevision;
+            tracedOcclusionRevision = occlusionRevision;
         } catch (Throwable t) {
             plugin.getLogger().log(Level.SEVERE, "An error occured on the RayTraceAntiXray tick thread", t);
         }
@@ -308,99 +313,111 @@ public final class RayTraceCallable implements Callable<Void> {
         int chunkXMax = (int) Math.floor(playerX + rayTraceDistance) >> 4;
         int chunkZMax = (int) Math.floor(playerZ + rayTraceDistance) >> 4;
         Queue<Result> results = playerData.getResults();
+        List<ChunkBlocks> dirtyChunks = new ArrayList<>();
 
-        for (ChunkBlocks chunkBlocks : this.chunks) {
-            LevelChunk chunk = chunkBlocks.getChunk();
+        try {
+            for (ChunkBlocks chunkBlocks : this.chunks) {
+                LevelChunk chunk = chunkBlocks.getChunk();
 
-            if (chunk == null) {
-                chunks.remove(chunkBlocks.getKey(), chunkBlocks);
-                continue;
-            }
-
-            // Location/occlusion changes invalidate every chunk; otherwise only trace newly received chunks.
-            if (!chunkBlocks.setDirty(false) && !forceRayTrace) {
-                continue;
-            }
-
-            ChunkPos chunkPos = chunk.getPos();
-            int chunkX = NmsCompat.chunkX(chunkPos);
-
-            if (chunkX < chunkXMin || chunkX > chunkXMax) {
-                continue;
-            }
-
-            int chunkZ = NmsCompat.chunkZ(chunkPos);
-
-            if (chunkZ < chunkZMin || chunkZ > chunkZMax) {
-                continue;
-            }
-
-            Iterator<Entry<BlockPos, Boolean>> iterator = chunkBlocks.getBlocks().entrySet().iterator();
-
-            while (iterator.hasNext()) {
-                Entry<BlockPos, Boolean> blockHidden = iterator.next();
-                BlockPos block = blockHidden.getKey();
-                int x = block.getX();
-                int y = block.getY();
-                int z = block.getZ();
-                double centerX = x + 0.5;
-                double centerY = y + 0.5;
-                double centerZ = z + 0.5;
-                double differenceX = playerX - centerX;
-                double differenceY = playerY - centerY;
-                double differenceZ = playerZ - centerZ;
-                double distanceSquared = differenceX * differenceX + differenceY * differenceY + differenceZ * differenceZ;
-
-                if (!(distanceSquared <= rayTraceDistanceSquared)) {
+                if (chunk == null) {
+                    chunks.remove(chunkBlocks.getKey(), chunkBlocks);
                     continue;
                 }
 
-                boolean visible = false;
+                // Location/occlusion changes invalidate every chunk; otherwise only trace newly received chunks.
+                boolean chunkDirty = chunkBlocks.isDirty();
+                if (!chunkDirty && !forceRayTrace) {
+                    continue;
+                }
+                if (chunkDirty) {
+                    dirtyChunks.add(chunkBlocks);
+                }
 
-                if (distanceSquared < rehideDistanceSquared) {
-                    int sectionY = y >> 4;
-                    // One cache init per block; viewing origin differs per location but chunk section is the same.
-                    cachedSectionBlockOcclusionGetter.initializeCache(chunk, chunkX, sectionY, chunkZ);
+                ChunkPos chunkPos = chunk.getPos();
+                int chunkX = NmsCompat.chunkX(chunkPos);
 
-                    for (int i = 0; i < locations.length; i++) {
-                        VectorialLocation location = locations[i];
-                        Vector direction = location.getDirection();
-                        double directionX = direction.getX();
-                        double directionY = direction.getY();
-                        double directionZ = direction.getZ();
+                if (chunkX < chunkXMin || chunkX > chunkXMax) {
+                    continue;
+                }
 
-                        if (i == 0) {
-                            if (blockOcclusionCulling.isVisible(x, y, z, centerX, centerY, centerZ, differenceX, differenceY, differenceZ, distanceSquared, directionX, directionY, directionZ)) {
-                                visible = true;
-                                break;
-                            }
-                        } else {
-                            Vector vector = location.getVector();
-                            double vectorDifferenceX = vector.getX() - centerX;
-                            double vectorDifferenceY = vector.getY() - centerY;
-                            double vectorDifferenceZ = vector.getZ() - centerZ;
+                int chunkZ = NmsCompat.chunkZ(chunkPos);
 
-                            if (blockOcclusionCulling.isVisible(x, y, z, centerX, centerY, centerZ, vectorDifferenceX, vectorDifferenceY, vectorDifferenceZ, vectorDifferenceX * vectorDifferenceX + vectorDifferenceY * vectorDifferenceY + vectorDifferenceZ * vectorDifferenceZ, directionX, directionY, directionZ)) {
-                                visible = true;
-                                break;
+                if (chunkZ < chunkZMin || chunkZ > chunkZMax) {
+                    continue;
+                }
+
+                Iterator<Entry<BlockPos, Boolean>> iterator = chunkBlocks.getBlocks().entrySet().iterator();
+
+                while (iterator.hasNext()) {
+                    Entry<BlockPos, Boolean> blockHidden = iterator.next();
+                    BlockPos block = blockHidden.getKey();
+                    int x = block.getX();
+                    int y = block.getY();
+                    int z = block.getZ();
+                    double centerX = x + 0.5;
+                    double centerY = y + 0.5;
+                    double centerZ = z + 0.5;
+                    double differenceX = playerX - centerX;
+                    double differenceY = playerY - centerY;
+                    double differenceZ = playerZ - centerZ;
+                    double distanceSquared = differenceX * differenceX + differenceY * differenceY + differenceZ * differenceZ;
+
+                    if (!(distanceSquared <= rayTraceDistanceSquared)) {
+                        continue;
+                    }
+
+                    boolean visible = false;
+
+                    if (distanceSquared < rehideDistanceSquared) {
+                        int sectionY = y >> 4;
+                        // One cache init per block; viewing origin differs per location but chunk section is the same.
+                        cachedSectionBlockOcclusionGetter.initializeCache(chunk, chunkX, sectionY, chunkZ);
+
+                        for (int i = 0; i < locations.length; i++) {
+                            VectorialLocation location = locations[i];
+                            Vector direction = location.getDirection();
+                            double directionX = direction.getX();
+                            double directionY = direction.getY();
+                            double directionZ = direction.getZ();
+
+                            if (i == 0) {
+                                if (blockOcclusionCulling.isVisible(x, y, z, centerX, centerY, centerZ, differenceX, differenceY, differenceZ, distanceSquared, directionX, directionY, directionZ)) {
+                                    visible = true;
+                                    break;
+                                }
+                            } else {
+                                Vector vector = location.getVector();
+                                double vectorDifferenceX = vector.getX() - centerX;
+                                double vectorDifferenceY = vector.getY() - centerY;
+                                double vectorDifferenceZ = vector.getZ() - centerZ;
+
+                                if (blockOcclusionCulling.isVisible(x, y, z, centerX, centerY, centerZ, vectorDifferenceX, vectorDifferenceY, vectorDifferenceZ, vectorDifferenceX * vectorDifferenceX + vectorDifferenceY * vectorDifferenceY + vectorDifferenceZ * vectorDifferenceZ, directionX, directionY, directionZ)) {
+                                    visible = true;
+                                    break;
+                                }
                             }
                         }
                     }
-                }
 
-                boolean hidden = blockHidden.getValue();
+                    boolean hidden = blockHidden.getValue();
 
-                if (visible) {
-                    if (hidden) {
-                        results.add(new Result(chunkBlocks, block, true));
+                    if (visible) {
+                        if (hidden) {
+                            results.add(new Result(chunkBlocks, block, true));
+                        }
+                    } else if (!hidden) {
+                        results.add(new Result(chunkBlocks, block, false));
                     }
-                } else if (!hidden) {
-                    results.add(new Result(chunkBlocks, block, false));
                 }
             }
-        }
 
-        cachedSectionBlockOcclusionGetter.clearCache();
+            // Commit per-chunk dirty state only after the complete snapshot succeeds.
+            for (ChunkBlocks dirtyChunk : dirtyChunks) {
+                dirtyChunk.markTraced();
+            }
+        } finally {
+            cachedSectionBlockOcclusionGetter.clearCache();
+        }
     }
 
     private static BlockState getBlockState(LevelChunkSection section, int x, int y, int z) {

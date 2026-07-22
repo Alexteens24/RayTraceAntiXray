@@ -11,14 +11,16 @@ import org.junit.jupiter.api.Test;
 class ChunkBlocksDirtyTrackingTest {
 
     @Test
-    void newChunkIsDirtyUntilConsumed() {
+    void newChunkStaysDirtyUntilSuccessfulTraceIsAcknowledged() {
         ChunkBlocks chunkBlocks = new ChunkBlocks(
             new WeakReference<>(null), new LongWrapper(12L), new ConcurrentHashMap<>(), true
         );
 
-        assertTrue(chunkBlocks.setDirty(false));
-        assertFalse(chunkBlocks.setDirty(false));
-        assertFalse(chunkBlocks.setDirty(true));
-        assertTrue(chunkBlocks.setDirty(false));
+        assertTrue(chunkBlocks.isDirty());
+        assertTrue(chunkBlocks.isDirty(), "a failed trace must leave the chunk dirty");
+
+        chunkBlocks.markTraced();
+
+        assertFalse(chunkBlocks.isDirty());
     }
 }

@@ -6,7 +6,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
@@ -17,7 +17,7 @@ public final class PlayerData implements Callable<Object> {
     private volatile VectorialLocation[] locations;
     private final AtomicReference<VectorialLocation[]> tracedLocations = new AtomicReference<>(EMPTY_LOCATIONS);
     private final ConcurrentMap<LongWrapper, ChunkBlocks> chunks = new ConcurrentHashMap<>();
-    private final AtomicBoolean chunksDirty = new AtomicBoolean();
+    private final AtomicLong chunksRevision = new AtomicLong();
     private final Queue<Result> results = new ConcurrentLinkedQueue<>();
     private Callable<?> callable;
     /** Per-player block-update tick; cancelled on quit (Paper/Folia/Canvas region scheduler). */
@@ -35,11 +35,14 @@ public final class PlayerData implements Callable<Object> {
         this.locations = locations;
     }
 
-    /** Records the current location snapshot as traced and reports whether it changed. */
-    public boolean consumeLocationsDirty() {
-        VectorialLocation[] current = locations;
-        VectorialLocation[] previous = tracedLocations.getAndSet(current);
-        return !Arrays.equals(previous, current);
+    /** Reports whether this snapshot differs from the last successfully traced snapshot. */
+    public boolean isLocationsDirty(VectorialLocation[] snapshot) {
+        return !Arrays.equals(tracedLocations.get(), snapshot);
+    }
+
+    /** Records a location snapshot only after its ray trace completed successfully. */
+    public void markLocationsTraced(VectorialLocation[] snapshot) {
+        tracedLocations.set(snapshot);
     }
 
     public ConcurrentMap<LongWrapper, ChunkBlocks> getChunks() {
@@ -48,7 +51,7 @@ public final class PlayerData implements Callable<Object> {
 
     public void addChunk(ChunkBlocks chunkBlocks) {
         chunks.put(chunkBlocks.getKey(), chunkBlocks);
-        chunksDirty.set(true);
+        chunksRevision.incrementAndGet();
     }
 
     public ChunkBlocks removeChunk(long chunkKey) {
@@ -59,9 +62,9 @@ public final class PlayerData implements Callable<Object> {
         chunks.clear();
     }
 
-    /** Clears the aggregate chunk-dirty flag and returns its previous value. */
-    public boolean consumeChunksDirty() {
-        return chunksDirty.getAndSet(false);
+    /** Monotonically identifies the current chunk-set snapshot. */
+    public long getChunksRevision() {
+        return chunksRevision.get();
     }
 
     public Queue<Result> getResults() {

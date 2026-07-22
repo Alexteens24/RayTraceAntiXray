@@ -42,8 +42,12 @@ public final class ChunkBlocks {
         return blocks;
     }
 
-    /** Sets the dirty flag and returns its previous value. */
-    public boolean setDirty(boolean dirty) {
-        return this.dirty.getAndSet(dirty);
+    public boolean isDirty() {
+        return dirty.get();
+    }
+
+    /** Marks this chunk clean only after its ray trace completed successfully. */
+    public void markTraced() {
+        dirty.set(false);
     }
 }
