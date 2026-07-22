@@ -15,7 +15,6 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerCh
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerUnloadChunk;
 import com.vanillage.raytraceantixray.RayTraceAntiXray;
 import com.vanillage.raytraceantixray.data.ChunkBlocks;
-import com.vanillage.raytraceantixray.data.LongWrapper;
 import com.vanillage.raytraceantixray.data.PlayerData;
 import com.vanillage.raytraceantixray.data.VectorialLocation;
 import com.vanillage.raytraceantixray.tasks.RayTraceCallable;
@@ -124,7 +123,7 @@ public final class PacketListener extends PacketListenerAbstract {
         }
 
         chunkBlocks = new ChunkBlocks(chunk, new ConcurrentHashMap<>(chunkBlocks.getBlocks()));
-        playerData.getChunks().put(chunkBlocks.getKey(), chunkBlocks);
+        playerData.addChunk(chunkBlocks);
     }
 
     private void onUnloadChunk(PacketSendEvent event) {
@@ -150,7 +149,7 @@ public final class PacketListener extends PacketListenerAbstract {
             return;
         }
 
-        playerData.getChunks().remove(new LongWrapper(chunkKey));
+        playerData.removeChunk(chunkKey);
     }
 
     private void onRespawn(PacketSendEvent event) {
@@ -173,6 +172,6 @@ public final class PacketListener extends PacketListenerAbstract {
             return;
         }
 
-        playerData.getChunks().clear();
+        playerData.clearChunks();
     }
 }

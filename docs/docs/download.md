@@ -29,4 +29,6 @@ Output: `build/libs/RayTraceAntiXray-<version>.jar`. See [Development](/docs/dev
 
 Original plugin by **stonar96** — [stonar96/RayTraceAntiXray](https://github.com/stonar96/RayTraceAntiXray).
 
+Dirty-tracking and supporting data-structure design were inspired by **TauCu's fork** — [TauCu/RayTraceAntiXray](https://github.com/TauCu/RayTraceAntiXray).
+
 Licensed [MIT](https://github.com/Alexteens24/RayTraceAntiXray/blob/main/LICENSE).

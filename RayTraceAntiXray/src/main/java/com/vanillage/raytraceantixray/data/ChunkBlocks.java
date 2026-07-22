@@ -3,6 +3,7 @@ package com.vanillage.raytraceantixray.data;
 import java.lang.ref.Reference;
 import java.lang.ref.WeakReference;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import net.minecraft.core.BlockPos;
 import com.vanillage.raytraceantixray.nms.NmsCompat;
@@ -12,11 +13,21 @@ public final class ChunkBlocks {
     private final Reference<LevelChunk> chunk;
     private final LongWrapper key;
     private final Map<BlockPos, Boolean> blocks;
+    private final AtomicBoolean dirty;
 
     public ChunkBlocks(LevelChunk chunk, Map<BlockPos, Boolean> blocks) {
-        this.chunk = new WeakReference<>(chunk);
-        key = new LongWrapper(NmsCompat.chunkPosKey(chunk.getPos()));
+        this(chunk, blocks, true);
+    }
+
+    public ChunkBlocks(LevelChunk chunk, Map<BlockPos, Boolean> blocks, boolean dirty) {
+        this(new WeakReference<>(chunk), new LongWrapper(NmsCompat.chunkPosKey(chunk.getPos())), blocks, dirty);
+    }
+
+    ChunkBlocks(Reference<LevelChunk> chunk, LongWrapper key, Map<BlockPos, Boolean> blocks, boolean dirty) {
+        this.chunk = chunk;
+        this.key = key;
         this.blocks = blocks;
+        this.dirty = new AtomicBoolean(dirty);
     }
 
     public LevelChunk getChunk() {
@@ -29,5 +40,14 @@ public final class ChunkBlocks {
 
     public Map<BlockPos, Boolean> getBlocks() {
         return blocks;
+    }
+
+    public boolean isDirty() {
+        return dirty.get();
+    }
+
+    /** Marks this chunk clean only after its ray trace completed successfully. */
+    public void markTraced() {
+        dirty.set(false);
     }
 }

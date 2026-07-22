@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.IntSupplier;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.BlockPos.MutableBlockPos;
@@ -88,6 +89,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
     private final boolean[] blockEntityGlobal = new boolean[Block.BLOCK_STATE_REGISTRY.size()];
     private final LevelChunkSection[] emptyNearbyChunkSections = {EMPTY_SECTION, EMPTY_SECTION, EMPTY_SECTION, EMPTY_SECTION};
     private final int maxBlockHeightUpdatePosition;
+    private final AtomicLong occlusionRevision = new AtomicLong();
     /**
      * Paper calls {@link #shouldModify(ServerPlayer, LevelChunk)} on the server thread before {@link #getChunkPacketInfo}
      * for the same outgoing chunk; we capture the player here so obfuscation (async) can queue chunk data for PacketEvents.
@@ -266,6 +268,12 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
 
     @Override
     public void modifyBlocks(ClientboundLevelChunkWithLightPacket chunkPacket, ChunkPacketInfo<BlockState> chunkPacketInfo) {
+        // Leaf 26.2 calls the standard Paper entry point from its async chunk-send worker.
+        if (LeafAsyncChunkSendCompat.useLeafAsyncChunkSendPath()) {
+            runLeafAsyncModifyBlocks(chunkPacket, chunkPacketInfo);
+            return;
+        }
+
         if (!(chunkPacketInfo instanceof ChunkPacketInfoAntiXray)) {
             chunkPacket.setReady(true);
             return;
@@ -284,15 +292,17 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
         setNearbyChunksAndScheduleObfuscation((ChunkPacketInfoAntiXray) chunkPacketInfo, chunk, level, x, z);
     }
 
-    /**
-     * Leaf {@code async-chunk-send} entry point (not on Paper's compile classpath; never invoked on stock Paper).
-     * Obfuscation runs on Leaf's async chunk-send thread, matching Paper's Leaf patch for anti-xray.
-     */
+    /** Legacy Leaf 1.21.11/26.1.2 entry point; Leaf 26.2+ calls {@link #modifyBlocks} instead. */
     public void leaf$modifyBlocks(ClientboundLevelChunkWithLightPacket chunkPacket, ChunkPacketInfo<BlockState> chunkPacketInfo) {
         if (!LeafAsyncChunkSendCompat.useLeafAsyncChunkSendPath()) {
             modifyBlocks(chunkPacket, chunkPacketInfo);
             return;
         }
+
+        runLeafAsyncModifyBlocks(chunkPacket, chunkPacketInfo);
+    }
+
+    private void runLeafAsyncModifyBlocks(ClientboundLevelChunkWithLightPacket chunkPacket, ChunkPacketInfo<BlockState> chunkPacketInfo) {
         if (!(chunkPacketInfo instanceof ChunkPacketInfoAntiXray antiXray)) {
             chunkPacket.setReady(true);
             return;
@@ -316,16 +326,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
     // Actually these fields should be variables inside the obfuscate method but in sync mode or with SingleThreadExecutor in async mode it's okay (even without ThreadLocal)
     // If an ExecutorService with multiple threads is used, ThreadLocal must be used here
     private final ThreadLocal<int[]> presetBlockStateBits = ThreadLocal.withInitial(() -> new int[getPresetBlockStatesFullLength()]);
-    private static final ThreadLocal<boolean[]> SOLID = ThreadLocal.withInitial(() -> new boolean[Block.BLOCK_STATE_REGISTRY.size()]);
-    private static final ThreadLocal<boolean[]> OBFUSCATE = ThreadLocal.withInitial(() -> new boolean[Block.BLOCK_STATE_REGISTRY.size()]);
-    private static final ThreadLocal<boolean[]> TRACE = ThreadLocal.withInitial(() -> new boolean[Block.BLOCK_STATE_REGISTRY.size()]);
-    private static final ThreadLocal<boolean[]> BLOCK_ENTITY = ThreadLocal.withInitial(() -> new boolean[Block.BLOCK_STATE_REGISTRY.size()]);
-    // These boolean arrays represent chunk layers, true means don't obfuscate, false means obfuscate
-    private static final ThreadLocal<boolean[][]> CURRENT = ThreadLocal.withInitial(() -> new boolean[16][16]);
-    private static final ThreadLocal<boolean[][]> NEXT = ThreadLocal.withInitial(() -> new boolean[16][16]);
-    private static final ThreadLocal<boolean[][]> NEXT_NEXT = ThreadLocal.withInitial(() -> new boolean[16][16]);
-    private static final ThreadLocal<boolean[][]> TRACE_CACHE = ThreadLocal.withInitial(() -> new boolean[16][16]);
-    private static final ThreadLocal<boolean[][]> BLOCK_ENTITY_CACHE = ThreadLocal.withInitial(() -> new boolean[16][16]);
+    private static final ThreadLocal<ObfuscationCache> OBFUSCATION_CACHE = ThreadLocal.withInitial(ObfuscationCache::new);
     private static final Field BLOCK_ENTITIES_DATA_FIELD;
     private static final Field PACKED_X_Z_FIELD;
     private static final Field Y_FIELD;
@@ -344,17 +345,44 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
         }
     }
 
+    private record ObfuscationCache(
+        boolean[] solid,
+        boolean[] obfuscate,
+        boolean[] trace,
+        boolean[] blockEntity,
+        boolean[][] current,
+        boolean[][] next,
+        boolean[][] nextNext,
+        boolean[][] traceCache,
+        boolean[][] blockEntityCache
+    ) {
+        private ObfuscationCache() {
+            this(
+                new boolean[Block.BLOCK_STATE_REGISTRY.size()],
+                new boolean[Block.BLOCK_STATE_REGISTRY.size()],
+                new boolean[Block.BLOCK_STATE_REGISTRY.size()],
+                new boolean[Block.BLOCK_STATE_REGISTRY.size()],
+                new boolean[16][16],
+                new boolean[16][16],
+                new boolean[16][16],
+                new boolean[16][16],
+                new boolean[16][16]
+            );
+        }
+    }
+
     public void obfuscate(ChunkPacketInfoAntiXray chunkPacketInfoAntiXray) {
         int[] presetBlockStateBits = this.presetBlockStateBits.get();
-        boolean[] solid = SOLID.get();
-        boolean[] obfuscate = OBFUSCATE.get();
-        boolean[] trace = traceGlobal == obfuscateGlobal ? obfuscate : TRACE.get();
-        boolean[] blockEntity = BLOCK_ENTITY.get();
-        boolean[][] current = CURRENT.get();
-        boolean[][] next = NEXT.get();
-        boolean[][] nextNext = NEXT_NEXT.get();
-        boolean[][] traceCache = TRACE_CACHE.get();
-        boolean[][] blockEntityCache = BLOCK_ENTITY_CACHE.get();
+        ObfuscationCache cache = OBFUSCATION_CACHE.get();
+        boolean[] solid = cache.solid();
+        boolean[] obfuscate = cache.obfuscate();
+        boolean[] trace = traceGlobal == obfuscateGlobal ? obfuscate : cache.trace();
+        boolean[] blockEntity = cache.blockEntity();
+        boolean[][] current = cache.current();
+        boolean[][] next = cache.next();
+        boolean[][] nextNext = cache.nextNext();
+        boolean[][] traceCache = cache.traceCache();
+        boolean[][] blockEntityCache = cache.blockEntityCache();
         // bitStorageReader, bitStorageWriter and nearbyChunkSections could also be reused (with ThreadLocal if necessary) but it's not worth it
         BitStorageReader bitStorageReader = new BitStorageReader();
         BitStorageWriter bitStorageWriter = new BitStorageWriter();
@@ -1105,9 +1133,21 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
 
     @Override
     public void onBlockChange(Level level, BlockPos blockPos, BlockState newBlockState, BlockState oldBlockState, @Block.UpdateFlags int flags, int maxUpdateDepth) {
-        if (oldBlockState != null && solidGlobal[GLOBAL_BLOCKSTATE_PALETTE.idFor(oldBlockState, PaletteResize.noResizeExpected())] && !solidGlobal[GLOBAL_BLOCKSTATE_PALETTE.idFor(newBlockState, PaletteResize.noResizeExpected())] && blockPos.getY() <= maxBlockHeightUpdatePosition) {
-            updateNearbyBlocks(level, blockPos);
+        if (oldBlockState != null) {
+            boolean oldSolid = solidGlobal[GLOBAL_BLOCKSTATE_PALETTE.idFor(oldBlockState, PaletteResize.noResizeExpected())];
+            boolean newSolid = solidGlobal[GLOBAL_BLOCKSTATE_PALETTE.idFor(newBlockState, PaletteResize.noResizeExpected())];
+
+            if (oldSolid != newSolid) {
+                occlusionRevision.incrementAndGet();
+            }
+            if (oldSolid && !newSolid && blockPos.getY() <= maxBlockHeightUpdatePosition) {
+                updateNearbyBlocks(level, blockPos);
+            }
         }
+    }
+
+    public long getOcclusionRevision() {
+        return occlusionRevision.get();
     }
 
     public void onPlayerLeftClickBlock(ServerPlayerGameMode serverPlayerGameMode, BlockPos blockPos, ServerboundPlayerActionPacket.Action action, Direction direction, int worldHeight, int sequence) {

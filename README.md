@@ -41,3 +41,6 @@ Fork-specific notes (multi-NMS, PacketEvents, Folia, Leaf): [FORK.md](FORK.md).
 ## License
 
 [MIT](LICENSE). Original plugin by **stonar96**.
+
+Dirty-tracking and supporting data-structure design were inspired by
+[TauCu's RayTraceAntiXray fork](https://github.com/TauCu/RayTraceAntiXray).
