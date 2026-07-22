@@ -133,6 +133,12 @@ Besides Paper (and Folia if used), **PacketEvents** (Spigot/Paper build) is requ
 
 ---
 
+## Acknowledgements
+
+The dirty-tracking approach and supporting data-structure design were inspired by [TauCu's RayTraceAntiXray fork](https://github.com/TauCu/RayTraceAntiXray). This fork adapts those ideas to its multi-version Paper/Leaf architecture.
+
+---
+
 ## License
 
 Upstream **LICENSE** terms still apply to this source tree; see **LICENSE** and **README** for redistribution rules.
