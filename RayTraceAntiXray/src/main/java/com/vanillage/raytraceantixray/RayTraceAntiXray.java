@@ -352,8 +352,9 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
         List<String> incompatibleWorlds = getIncompatiblePaperAntiXrayWorlds();
 
         if (!incompatibleWorlds.isEmpty()) {
-            getLogger().warning("Paper Anti-Xray must be enabled with engine-mode 1 for: " + String.join(", ", incompatibleWorlds));
-            getLogger().warning("A full server restart is required after changing Paper configuration. Setup guide: " + PaperAntiXrayReminder.SETUP_GUIDE_URL);
+            for (String message : PaperAntiXrayReminder.consoleMessages(incompatibleWorlds)) {
+                getLogger().warning(message);
+            }
         }
     }
 

@@ -132,7 +132,7 @@ public final class RayTraceAntiXrayTabExecutor implements TabExecutor {
 
                 if (args.length == 2 && args[1].toLowerCase(Locale.ROOT).equals("dismiss")) {
                     if (plugin.setPaperAntiXrayReminderEnabled(false)) {
-                        sender.sendMessage(Component.text("Paper Anti-Xray setup reminders disabled for this server."));
+                        sender.sendMessage(Component.text("Got it — setup reminders are now off for this server.", NamedTextColor.GREEN));
                     } else {
                         sender.sendMessage(Component.text("Could not save the reminder setting. Check the server log.", NamedTextColor.RED));
                     }
@@ -141,7 +141,7 @@ public final class RayTraceAntiXrayTabExecutor implements TabExecutor {
 
                 if (args.length == 2 && args[1].toLowerCase(Locale.ROOT).equals("enable")) {
                     if (plugin.setPaperAntiXrayReminderEnabled(true)) {
-                        sender.sendMessage(Component.text("Paper Anti-Xray setup reminders enabled."));
+                        sender.sendMessage(Component.text("Setup reminders are back on.", NamedTextColor.GREEN));
                         sendReminderStatus(sender);
                     } else {
                         sender.sendMessage(Component.text("Could not save the reminder setting. Check the server log.", NamedTextColor.RED));
@@ -156,14 +156,14 @@ public final class RayTraceAntiXrayTabExecutor implements TabExecutor {
 
     private void sendReminderStatus(CommandSender sender) {
         if (!plugin.isPaperAntiXrayReminderEnabled()) {
-            sender.sendMessage(Component.text("Paper Anti-Xray setup reminders are disabled for this server.", NamedTextColor.GRAY));
+            sender.sendMessage(Component.text("Setup reminders are currently off. Use /raytraceantixray reminder enable whenever you want them back.", NamedTextColor.GRAY));
             return;
         }
 
         List<String> incompatibleWorlds = plugin.getIncompatiblePaperAntiXrayWorlds();
 
         if (incompatibleWorlds.isEmpty()) {
-            sender.sendMessage(Component.text("Paper Anti-Xray is compatible with the enabled RayTraceAntiXray worlds.", NamedTextColor.GREEN));
+            sender.sendMessage(Component.text("Everything looks good! Paper Anti-Xray is ready for all enabled RayTraceAntiXray worlds.", NamedTextColor.GREEN));
         } else {
             sender.sendMessage(PaperAntiXrayReminder.message(incompatibleWorlds));
         }

@@ -29,6 +29,15 @@ final class PaperAntiXrayReminderTest {
         assertTrue(hasClickEvent(message, ClickEvent.runCommand("/raytraceantixray reminder dismiss")));
     }
 
+    @Test
+    void consoleMessageIsActionableAndListsAffectedWorlds() {
+        List<String> messages = PaperAntiXrayReminder.consoleMessages(List.of("resource", "world"));
+
+        assertTrue(messages.stream().anyMatch(message -> message.contains("resource, world")));
+        assertTrue(messages.stream().anyMatch(message -> message.contains("fully restart")));
+        assertTrue(messages.contains(PaperAntiXrayReminder.SETUP_GUIDE_URL));
+    }
+
     private static Stream<Component> components(Component component) {
         return Stream.concat(Stream.of(component), component.children().stream().flatMap(PaperAntiXrayReminderTest::components));
     }
