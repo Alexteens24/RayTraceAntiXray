@@ -12,6 +12,10 @@ Base command permission (Bukkit-enforced via <code>plugin.yml</code>). Required 
 Use <code>/raytraceantixray reload</code>.
 </PermRow>
 
+<PermRow permission="raytraceantixray.reminder" defaultVal="op">
+Receive Paper Anti-Xray setup reminders and use <code>/raytraceantixray reminder [dismiss|enable]</code>. Dismiss and enable affect the whole server.
+</PermRow>
+
 <PermRow permission="raytraceantixray.command.raytraceantixray.timings" defaultVal="none">
 Parent for timings subcommands; checked before <code>on</code> or <code>off</code> is accepted.
 </PermRow>

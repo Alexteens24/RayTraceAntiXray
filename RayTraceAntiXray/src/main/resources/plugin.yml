@@ -10,6 +10,10 @@ folia-supported: true
 commands:
   raytraceantixray:
     description: All commands for RayTraceAntiXray.
-    usage: '§cUsage: /<command> reload | timings (on|off)'
+    usage: '§cUsage: /<command> reload | timings (on|off) | reminder [dismiss|enable]'
     permission: raytraceantixray.command.raytraceantixray
     permission-message: §cYou don't have permissions.
+permissions:
+  raytraceantixray.reminder:
+    description: Receive, inspect, dismiss, and enable Paper Anti-Xray setup reminders.
+    default: op

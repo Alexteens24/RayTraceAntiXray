@@ -9,6 +9,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabExecutor;
 
 import com.vanillage.raytraceantixray.RayTraceAntiXrayCommandTarget;
+import com.vanillage.raytraceantixray.reminder.PaperAntiXrayReminder;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -37,6 +38,10 @@ public final class RayTraceAntiXrayTabExecutor implements TabExecutor {
                 if (sender.hasPermission("raytraceantixray.command.raytraceantixray.reload") && "reload".startsWith(args[0].toLowerCase(Locale.ROOT))) {
                     completions.add("reload");
                 }
+
+                if (sender.hasPermission(PaperAntiXrayReminder.PERMISSION) && "reminder".startsWith(args[0].toLowerCase(Locale.ROOT))) {
+                    completions.add("reminder");
+                }
             } else if (args[0].toLowerCase(Locale.ROOT).equals("timings")) {
                 if (sender.hasPermission("raytraceantixray.command.raytraceantixray.timings")) {
                     if (args.length == 2) {
@@ -51,6 +56,16 @@ public final class RayTraceAntiXrayTabExecutor implements TabExecutor {
                 }
             } else if (args[0].toLowerCase(Locale.ROOT).equals("reload")) {
                 // No sub-arguments.
+            } else if (args[0].toLowerCase(Locale.ROOT).equals("reminder")) {
+                if (sender.hasPermission(PaperAntiXrayReminder.PERMISSION) && args.length == 2) {
+                    if ("dismiss".startsWith(args[1].toLowerCase(Locale.ROOT))) {
+                        completions.add("dismiss");
+                    }
+
+                    if ("enable".startsWith(args[1].toLowerCase(Locale.ROOT))) {
+                        completions.add("enable");
+                    }
+                }
             }
         }
 
@@ -104,9 +119,53 @@ public final class RayTraceAntiXrayTabExecutor implements TabExecutor {
                     sender.sendMessage(Component.text("You don't have permissions.", NamedTextColor.RED));
                     return true;
                 }
+            } else if (args[0].toLowerCase(Locale.ROOT).equals("reminder")) {
+                if (!sender.hasPermission(PaperAntiXrayReminder.PERMISSION)) {
+                    sender.sendMessage(Component.text("You don't have permissions.", NamedTextColor.RED));
+                    return true;
+                }
+
+                if (args.length == 1) {
+                    sendReminderStatus(sender);
+                    return true;
+                }
+
+                if (args.length == 2 && args[1].toLowerCase(Locale.ROOT).equals("dismiss")) {
+                    if (plugin.setPaperAntiXrayReminderEnabled(false)) {
+                        sender.sendMessage(Component.text("Paper Anti-Xray setup reminders disabled for this server."));
+                    } else {
+                        sender.sendMessage(Component.text("Could not save the reminder setting. Check the server log.", NamedTextColor.RED));
+                    }
+                    return true;
+                }
+
+                if (args.length == 2 && args[1].toLowerCase(Locale.ROOT).equals("enable")) {
+                    if (plugin.setPaperAntiXrayReminderEnabled(true)) {
+                        sender.sendMessage(Component.text("Paper Anti-Xray setup reminders enabled."));
+                        sendReminderStatus(sender);
+                    } else {
+                        sender.sendMessage(Component.text("Could not save the reminder setting. Check the server log.", NamedTextColor.RED));
+                    }
+                    return true;
+                }
             }
         }
 
         return false;
+    }
+
+    private void sendReminderStatus(CommandSender sender) {
+        if (!plugin.isPaperAntiXrayReminderEnabled()) {
+            sender.sendMessage(Component.text("Paper Anti-Xray setup reminders are disabled for this server.", NamedTextColor.GRAY));
+            return;
+        }
+
+        List<String> incompatibleWorlds = plugin.getIncompatiblePaperAntiXrayWorlds();
+
+        if (incompatibleWorlds.isEmpty()) {
+            sender.sendMessage(Component.text("Paper Anti-Xray is compatible with the enabled RayTraceAntiXray worlds.", NamedTextColor.GREEN));
+        } else {
+            sender.sendMessage(PaperAntiXrayReminder.message(incompatibleWorlds));
+        }
     }
 }

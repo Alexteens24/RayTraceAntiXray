@@ -80,7 +80,9 @@ public final class PlayerListener implements Listener {
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent event) {
-        register(plugin, event.getPlayer());
+        Player player = event.getPlayer();
+        register(plugin, player);
+        player.getScheduler().runDelayed(plugin, task -> plugin.sendPaperAntiXrayReminder(player), null, 40L);
     }
 
     @EventHandler
