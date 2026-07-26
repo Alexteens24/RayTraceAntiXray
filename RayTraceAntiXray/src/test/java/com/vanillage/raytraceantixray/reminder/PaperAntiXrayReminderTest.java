@@ -35,7 +35,8 @@ final class PaperAntiXrayReminderTest {
 
         assertTrue(messages.stream().anyMatch(message -> message.contains("resource, world")));
         assertTrue(messages.stream().anyMatch(message -> message.contains("fully restart")));
-        assertTrue(messages.contains(PaperAntiXrayReminder.SETUP_GUIDE_URL));
+        assertTrue(messages.stream().anyMatch(message -> message.contains(PaperAntiXrayReminder.SETUP_GUIDE_URL)));
+        assertTrue(messages.get(0).equals(messages.get(messages.size() - 1)));
     }
 
     private static Stream<Component> components(Component component) {
