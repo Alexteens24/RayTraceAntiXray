@@ -11,6 +11,16 @@ Permissions:
 raytraceantixray.command.raytraceantixray.reload
 
 Command:
+/raytraceantixray reminder [dismiss|enable]
+Description:
+Shows Paper Anti-Xray compatibility for worlds using RayTraceAntiXray.
+Operators receive a clickable setup reminder after joining when Paper Anti-Xray is disabled or does not use engine-mode 1.
+Dismiss disables the reminder for the whole server; enable turns it back on.
+Changing Paper Anti-Xray requires a full server restart.
+Permissions:
+raytraceantixray.reminder
+
+Command:
 /raytraceantixray timings on
 Description:
 Turns on timings.

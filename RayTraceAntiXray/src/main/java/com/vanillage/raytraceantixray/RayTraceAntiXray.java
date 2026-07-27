@@ -1,6 +1,7 @@
 package com.vanillage.raytraceantixray;
 
 import java.io.File;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -34,6 +35,8 @@ import com.vanillage.raytraceantixray.listeners.PacketListener;
 import com.vanillage.raytraceantixray.listeners.PlayerListener;
 import com.vanillage.raytraceantixray.listeners.WorldListener;
 import com.vanillage.raytraceantixray.metrics.RayTraceAntiXrayMetrics;
+import com.vanillage.raytraceantixray.reminder.PaperAntiXrayReminder;
+import com.vanillage.raytraceantixray.reminder.ReminderState;
 import com.vanillage.raytraceantixray.tasks.RayTraceTimerTask;
 
 import io.papermc.paper.antixray.ChunkPacketBlockController;
@@ -59,6 +62,7 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
     private ScheduledTask rayTraceScheduledTask;
     private long updateTicks = 1L;
     private PacketListenerCommon packetEventsChunkListener;
+    private ReminderState reminderState;
 
     @Override
     public void onEnable() {
@@ -67,6 +71,7 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
         }
 
         saveDefaultConfig();
+        reminderState = new ReminderState(new File(getDataFolder(), "reminder.yml"), getLogger());
         FileConfiguration config = getConfig();
         config.options().copyDefaults(true);
         // Add defaults.
@@ -98,6 +103,7 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
         for (World w : Bukkit.getWorlds()) {
             WorldListener.handleLoad(this, w);
         }
+        logPaperAntiXrayReminder();
 
         packetEventsChunkListener = new PacketListener(this);
         PacketEvents.getAPI().getEventManager().registerListener(packetEventsChunkListener);
@@ -303,6 +309,53 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
         }
 
         return false;
+    }
+
+    @Override
+    public List<String> getIncompatiblePaperAntiXrayWorlds() {
+        FileConfiguration config = getConfig();
+
+        return Bukkit.getWorlds().stream().filter(world -> {
+            boolean rayTraceRequested = config.getBoolean("world-settings." + world.getName() + ".anti-xray.ray-trace", config.getBoolean("world-settings.default.anti-xray.ray-trace"));
+            AntiXray antiXray = ((CraftWorld) world).getHandle().paperConfig().anticheat.antiXray;
+            return PaperAntiXrayReminder.isIncompatible(rayTraceRequested, antiXray.enabled, antiXray.engineMode == EngineMode.HIDE);
+        }).map(World::getName).sorted().toList();
+    }
+
+    @Override
+    public boolean isPaperAntiXrayReminderEnabled() {
+        return reminderState.isEnabled();
+    }
+
+    @Override
+    public boolean setPaperAntiXrayReminderEnabled(boolean enabled) {
+        return reminderState.setEnabled(enabled);
+    }
+
+    public void sendPaperAntiXrayReminder(Player player) {
+        if (!isPaperAntiXrayReminderEnabled() || !player.hasPermission(PaperAntiXrayReminder.PERMISSION)) {
+            return;
+        }
+
+        List<String> incompatibleWorlds = getIncompatiblePaperAntiXrayWorlds();
+
+        if (!incompatibleWorlds.isEmpty()) {
+            player.sendMessage(PaperAntiXrayReminder.message(incompatibleWorlds));
+        }
+    }
+
+    private void logPaperAntiXrayReminder() {
+        if (!isPaperAntiXrayReminderEnabled()) {
+            return;
+        }
+
+        List<String> incompatibleWorlds = getIncompatiblePaperAntiXrayWorlds();
+
+        if (!incompatibleWorlds.isEmpty()) {
+            for (String message : PaperAntiXrayReminder.consoleMessages(incompatibleWorlds)) {
+                getLogger().warning(message);
+            }
+        }
     }
 
     public boolean validatePlayer(Player player) {

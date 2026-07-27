@@ -3,6 +3,7 @@ package com.vanillage.raytraceantixray.commands;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -36,6 +37,9 @@ final class RayTraceAntiXrayTabExecutorReloadTest {
     @BeforeEach
     void setUp() {
         fakeTarget.reloadCount = 0;
+        fakeTarget.reminderEnabled = true;
+        fakeTarget.reminderSaveSucceeds = true;
+        fakeTarget.incompatibleWorlds = List.of("world");
         when(command.getName()).thenReturn("raytraceantixray");
         executor = new RayTraceAntiXrayTabExecutor(fakeTarget);
     }
@@ -102,8 +106,63 @@ final class RayTraceAntiXrayTabExecutorReloadTest {
         assertTrue(completions.contains("reload"));
     }
 
+    @Test
+    void reminder_showsCompatibilityMessageWhenPermitted() {
+        when(sender.hasPermission("raytraceantixray.reminder")).thenReturn(true);
+
+        boolean result = executor.onCommand(sender, command, "raytraceantixray", new String[] { "reminder" });
+
+        assertTrue(result);
+        verify(sender).sendMessage(any(Component.class));
+    }
+
+    @Test
+    void reminderDismiss_persistsDisabledState() {
+        when(sender.hasPermission("raytraceantixray.reminder")).thenReturn(true);
+
+        boolean result = executor.onCommand(sender, command, "raytraceantixray", new String[] { "reminder", "dismiss" });
+
+        assertTrue(result);
+        assertFalse(fakeTarget.reminderEnabled);
+        verify(sender).sendMessage(any(Component.class));
+    }
+
+    @Test
+    void reminder_withoutPermission_doesNotChangeState() {
+        when(sender.hasPermission("raytraceantixray.reminder")).thenReturn(false);
+
+        boolean result = executor.onCommand(sender, command, "raytraceantixray", new String[] { "reminder", "dismiss" });
+
+        assertTrue(result);
+        assertTrue(fakeTarget.reminderEnabled);
+        verify(sender).sendMessage(any(Component.class));
+    }
+
+    @Test
+    void tabComplete_includesReminderActionsWhenPermitted() {
+        when(sender.hasPermission("raytraceantixray.reminder")).thenReturn(true);
+
+        List<String> completions = executor.onTabComplete(sender, command, "raytraceantixray", new String[] { "reminder", "" });
+
+        assertTrue(completions.contains("dismiss"));
+        assertTrue(completions.contains("enable"));
+    }
+
+    @Test
+    void reminder_withExtraArguments_returnsFalse() {
+        when(sender.hasPermission("raytraceantixray.reminder")).thenReturn(true);
+
+        boolean result = executor.onCommand(sender, command, "raytraceantixray", new String[] { "reminder", "dismiss", "extra" });
+
+        assertFalse(result);
+        verify(sender, never()).sendMessage(any(Component.class));
+    }
+
     private static final class FakeCommandTarget implements RayTraceAntiXrayCommandTarget {
         int reloadCount;
+        boolean reminderEnabled;
+        boolean reminderSaveSucceeds;
+        List<String> incompatibleWorlds;
 
         @Override
         public void reloadPluginConfiguration() {
@@ -113,6 +172,24 @@ final class RayTraceAntiXrayTabExecutorReloadTest {
         @Override
         public void setTimingsEnabled(boolean timingsEnabled) {
             // not used by reload tests
+        }
+
+        @Override
+        public List<String> getIncompatiblePaperAntiXrayWorlds() {
+            return incompatibleWorlds;
+        }
+
+        @Override
+        public boolean isPaperAntiXrayReminderEnabled() {
+            return reminderEnabled;
+        }
+
+        @Override
+        public boolean setPaperAntiXrayReminderEnabled(boolean enabled) {
+            if (reminderSaveSucceeds) {
+                reminderEnabled = enabled;
+            }
+            return reminderSaveSucceeds;
         }
     }
 }

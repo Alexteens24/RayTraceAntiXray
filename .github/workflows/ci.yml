@@ -2,6 +2,7 @@
 name: CI
 
 on:
+  workflow_dispatch:
   push:
     branches: ["main"]
     paths:
@@ -60,7 +61,6 @@ jobs:
         run: ./gradlew build --no-daemon --stacktrace
 
       - name: Prepare artifact (universal plugin JAR)
-        if: success() && github.event_name == 'push'
         run: |
           mkdir -p ci-out
           shopt -s nullglob
@@ -73,12 +73,14 @@ jobs:
           test "$(find ci-out -name '*.jar' | wc -l)" -ge 1
 
       - name: Upload plugin JAR
-        if: success() && github.event_name == 'push'
+        id: upload-plugin
         uses: actions/upload-artifact@v4
         with:
           name: RayTraceAntiXray-${{ github.sha }}
           path: ci-out/*.jar
           if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
 
       - name: Summary
         if: always()
@@ -89,6 +91,10 @@ jobs:
             echo "|--|--|"
             echo "| Event | ${{ github.event_name }} |"
             echo "| Runner JDK | **${{ env.CI_JAVA_VERSION }}** |"
+            echo "| Artifact retention | **14 days** |"
+            if [ -n "${{ steps.upload-plugin.outputs.artifact-url }}" ]; then
+              echo "| Download | [RayTraceAntiXray universal JAR](${{ steps.upload-plugin.outputs.artifact-url }}) |"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
   smoke:

@@ -12,6 +12,18 @@ Reloads <code>config.yml</code> and reapplies ray-trace scheduling, world contro
 </ul>
 </CommandRow>
 
+<CommandRow commands="/raytraceantixray reminder" permission="raytraceantixray.reminder">
+Shows whether Paper Anti-Xray is compatible with every loaded world where RayTraceAntiXray is enabled. If setup is required, the response includes a clickable link to the setup guide.
+</CommandRow>
+
+<CommandRow commands="/raytraceantixray reminder dismiss" permission="raytraceantixray.reminder">
+Disables join and startup setup reminders for the whole server. The choice is stored in <code>plugins/RayTraceAntiXray/reminder.yml</code> and does not modify either plugin's main configuration.
+</CommandRow>
+
+<CommandRow commands="/raytraceantixray reminder enable" permission="raytraceantixray.reminder">
+Enables Paper Anti-Xray setup reminders again and immediately displays the current compatibility status.
+</CommandRow>
+
 <CommandRow commands="/raytraceantixray timings on" permission="raytraceantixray.command.raytraceantixray.timings.on">
 Enables per-tick ray batch duration logging to the console.
 Requires <code>raytraceantixray.command.raytraceantixray.timings</code> as well.
@@ -22,6 +34,15 @@ Disables timings output. Also requires the <code>.timings</code> parent node.
 </CommandRow>
 
 </div>
+
+## Paper Anti-Xray reminder
+
+When a loaded world has plugin ray tracing enabled but Paper Anti-Xray is disabled or does not use `engine-mode: 1`, RayTraceAntiXray:
+
+1. Logs the affected world names and setup URL during startup.
+2. Sends players with `raytraceantixray.reminder` a clickable reminder shortly after they join.
+
+Paper configuration is never changed automatically. Follow the [Paper Anti-Xray setup](/docs/recommended-configuration#paper-anti-xray-setup) and restart the server to apply it.
 
 ::: tip Base permission
 Bukkit checks <code>raytraceantixray.command.raytraceantixray</code> (declared on the command in <code>plugin.yml</code>) before any subcommand runs.

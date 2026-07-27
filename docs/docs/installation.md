@@ -28,7 +28,7 @@ Get the JAR from [Modrinth](https://modrinth.com/plugin/forkedraytraceantixray).
 
 1. **Stop your server** completely.
 2. Install [PacketEvents](https://modrinth.com/plugin/packetevents) into `plugins/`.
-3. Enable Paper Anti-Xray with **`engine-mode: 1`** — use the [official Paper preset](https://docs.papermc.io/paper/anti-xray/#engine-mode-1) in `config/paper-world-defaults.yml` (see [Recommended setup](/docs/recommended-configuration)).
+3. Enable Paper Anti-Xray with **`engine-mode: 1`** — use the [official Paper preset](https://docs.papermc.io/paper/anti-xray/#engine-mode-1) in `config/paper-world-defaults.yml` (see [Paper Anti-Xray setup](/docs/recommended-configuration#paper-anti-xray-setup)).
 
 ### 3. Install RayTraceAntiXray
 
@@ -40,6 +40,8 @@ Get the JAR from [Modrinth](https://modrinth.com/plugin/forkedraytraceantixray).
 Edit `plugins/RayTraceAntiXray/config.yml`. Copy-paste presets from [Recommended setup](/docs/recommended-configuration) (Paper Anti-Xray + plugin). See [Configuration](/docs/configuration) for every key.
 
 On first run the plugin also writes `plugins/RayTraceAntiXray/README.txt` with command and permission reference.
+
+If a loaded world still needs Paper Anti-Xray setup, the console is warned during startup and operators receive a clickable guide link after joining. The plugin does not edit Paper configuration.
 
 ### 5. Verify
 
@@ -63,3 +65,4 @@ Use `/raytraceantixray reload` only for `config.yml` changes — not for JAR or 
 |------|-------------|
 | `config.yml` | Main plugin configuration |
 | `README.txt` | In-server command and permission cheat sheet |
+| `reminder.yml` | Created after dismissing or enabling the Paper Anti-Xray setup reminder |

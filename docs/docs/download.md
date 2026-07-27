@@ -13,6 +13,12 @@ Place the `.jar` in your server's `plugins/` folder and follow the [Installation
 
 One universal JAR covers all supported versions — no classifier suffix.
 
+## Development builds
+
+Every successful `main`, pull request, and manually triggered CI build publishes the universal plugin JAR as a GitHub Actions artifact for 14 days.
+
+Open the relevant [CI workflow run](https://github.com/Alexteens24/RayTraceAntiXray/actions/workflows/ci.yml), then use the **RayTraceAntiXray universal JAR** link in its summary or the **Artifacts** section. GitHub may require you to sign in before downloading.
+
 ## Building from source
 
 For contributors only — server operators should use Modrinth.

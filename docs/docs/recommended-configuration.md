@@ -18,7 +18,11 @@ Paper requires a **full server restart** after Anti-Xray changes — not `/reloa
 
 ---
 
-## Paper Anti-Xray (official — engine-mode 1)
+## Paper Anti-Xray setup
+
+RayTraceAntiXray checks loaded worlds at startup. If ray tracing is enabled for a world but Paper Anti-Xray is disabled or not using `engine-mode: 1`, the plugin warns the console and sends operators a clickable setup reminder when they join.
+
+The reminder does not modify Paper configuration. After applying the settings below, perform a **full server restart**; `/raytraceantixray reload` cannot reload Paper Anti-Xray.
 
 Source: [Paper — Configuring Anti-Xray](https://docs.papermc.io/paper/anti-xray/#engine-mode-1)
 
