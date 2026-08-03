@@ -171,7 +171,7 @@ final class RayTraceAntiXrayTabExecutorReloadTest {
 
         @Override
         public void setTimingsEnabled(boolean timingsEnabled) {
-            // not used by reload tests
+
         }
 
         @Override

@@ -5,7 +5,7 @@ import java.util.function.Predicate;
 
 import com.vanillage.raytraceantixray.util.ConcurrentKeyedQueue;
 
-/** FIFO target queues isolated by dimension and chunk key. */
+
 final class LeafChunkTargetStore<T> {
     private final ConcurrentKeyedQueue<TargetKey, T> targets = new ConcurrentKeyedQueue<>();
 

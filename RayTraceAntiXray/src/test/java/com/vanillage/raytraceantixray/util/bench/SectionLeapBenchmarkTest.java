@@ -13,14 +13,7 @@ import com.vanillage.raytraceantixray.util.BlockIterator;
 import com.vanillage.raytraceantixray.util.BlockOcclusionCulling;
 import com.vanillage.raytraceantixray.util.BlockOcclusionCulling.BlockOcclusionGetter;
 
-/**
- * Micro-benchmark (JUnit, not JMH): compares pure DDA ({@code section-leap: false}) vs
- * section-leap ({@code section-leap: true}) for {@link BlockOcclusionCulling#isVisible}.
- * <p>
- * Run: {@code ./gradlew bench --no-daemon}
- * <p>
- * Normal {@code ./gradlew test} excludes this class ({@code @Tag("bench")}).
- */
+
 @Tag("bench")
 final class SectionLeapBenchmarkTest {
 

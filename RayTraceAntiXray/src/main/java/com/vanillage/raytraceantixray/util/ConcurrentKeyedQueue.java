@@ -7,10 +7,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
-/**
- * Concurrent FIFO queues partitioned by key. Queue creation, mutation, and removal are performed inside
- * {@link ConcurrentHashMap#compute} operations so an empty queue cannot be removed while another thread appends to it.
- */
+
 public final class ConcurrentKeyedQueue<K, V> {
     private final ConcurrentMap<K, ConcurrentLinkedQueue<V>> queues = new ConcurrentHashMap<>();
 

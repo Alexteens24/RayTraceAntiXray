@@ -28,18 +28,14 @@ public final class PlayerListener implements Listener {
         this.plugin = plugin;
     }
 
-    /**
-     * Players already online when the plugin enables do not get {@link PlayerJoinEvent}.
-     */
+
     public static void registerExistingPlayers(RayTraceAntiXray plugin) {
         for (Player player : Bukkit.getOnlinePlayers()) {
             register(plugin, player);
         }
     }
 
-    /**
-     * Clears player state and pending chunk queues, then registers every online player again (e.g. after config reload).
-     */
+
     public static void unregisterAndReregisterAll(RayTraceAntiXray plugin) {
         for (Player player : Bukkit.getOnlinePlayers()) {
             UUID id = player.getUniqueId();
@@ -56,10 +52,7 @@ public final class PlayerListener implements Listener {
         registerExistingPlayers(plugin);
     }
 
-    /**
-     * Registers ray-trace data and the repeating block-update task on this player's region scheduler
-     * (required on Folia/Canvas so {@link net.minecraft.world.level.Level#getBlockState} has region context).
-     */
+
     public static void register(RayTraceAntiXray plugin, Player player) {
         if (!plugin.validatePlayer(player)) {
             return;

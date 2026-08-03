@@ -17,6 +17,6 @@ dependencies {
 paperweight.reobfArtifactConfiguration = ReobfArtifactConfiguration.MOJANG_PRODUCTION
 
 tasks.withType<JavaCompile>().configureEach {
-    // Java 25 bytecode; only loaded on 26.x servers (Java 21 servers load paper_1_21_11 bindings only).
+
     options.release.set(25)
 }

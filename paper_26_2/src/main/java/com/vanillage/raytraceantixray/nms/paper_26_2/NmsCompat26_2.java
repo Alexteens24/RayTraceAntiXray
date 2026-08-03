@@ -9,7 +9,7 @@ import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 
-/** Paper 26.2 NMS bindings (loaded at runtime via {@link NmsBridge}). */
+
 public final class NmsCompat26_2 implements NmsBridge {
     private static final Field SERVER_EXECUTOR_FIELD = findServerExecutorField();
 

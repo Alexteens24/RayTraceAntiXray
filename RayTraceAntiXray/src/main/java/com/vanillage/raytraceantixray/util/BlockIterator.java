@@ -3,7 +3,7 @@ package com.vanillage.raytraceantixray.util;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-// Amanatides, J., & Woo, A. A Fast Voxel Traversal Algorithm for Ray Tracing. http://www.cse.yorku.ca/~amana/research/grid.pdf.
+
 public final class BlockIterator implements Iterator<int[]> {
     private int x;
     private int y;
@@ -18,7 +18,7 @@ public final class BlockIterator implements Iterator<int[]> {
     private double tDeltaX;
     private double tDeltaY;
     private double tDeltaZ;
-    private int[] ref = new int[3]; // This implementation always returns ref or refSwap to avoid garbage. Can easily be changed if needed.
+    private int[] ref = new int[3];
     private int[] refSwap = new int[3];
     private int[] next;
 
@@ -116,11 +116,7 @@ public final class BlockIterator implements Iterator<int[]> {
         return this;
     }
 
-    /**
-     * Reseeds traversal so the next {@link #calculateNext()} steps from the last voxel still inside
-     * a leapt section (just before {@code sectionExitT}) toward the next section along the ray.
-     * The ray is {@code origin + t * dir} for {@code t} in {@code [0, totalDistance]} with unit {@code dir}.
-     */
+
     public void reseedAfterSectionLeap(double originX, double originY, double originZ, double dirX, double dirY, double dirZ, double totalDistance, double sectionExitT) {
         double inside = 1e-4;
         double tInside = Math.max(0., sectionExitT - inside);
@@ -145,7 +141,6 @@ public final class BlockIterator implements Iterator<int[]> {
             if (tMaxZ < tMaxX) {
                 if (tMaxZ <= tMax) {
                     z += stepZ;
-                    // next = new int[] { x, y, z };
                     ref[0] = x;
                     ref[1] = y;
                     ref[2] = z;
@@ -161,7 +156,6 @@ public final class BlockIterator implements Iterator<int[]> {
                     }
 
                     x += stepX;
-                    // next = new int[] { x, y, z };
                     ref[0] = x;
                     ref[1] = y;
                     ref[2] = z;
@@ -178,7 +172,6 @@ public final class BlockIterator implements Iterator<int[]> {
                 }
 
                 y += stepY;
-                // next = new int[] { x, y, z };
                 ref[0] = x;
                 ref[1] = y;
                 ref[2] = z;
@@ -199,7 +192,6 @@ public final class BlockIterator implements Iterator<int[]> {
                 }
 
                 z += stepZ;
-                // next = new int[] { x, y, z };
                 ref[0] = x;
                 ref[1] = y;
                 ref[2] = z;

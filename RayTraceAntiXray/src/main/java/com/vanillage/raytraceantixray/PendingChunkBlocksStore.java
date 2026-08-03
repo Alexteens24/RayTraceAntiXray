@@ -7,7 +7,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import com.vanillage.raytraceantixray.util.ConcurrentKeyedQueue;
 
-/** Pending obfuscated chunk payloads for currently registered players. */
+
 final class PendingChunkBlocksStore<T> {
     private final ConcurrentMap<UUID, ConcurrentKeyedQueue<Long, T>> players = new ConcurrentHashMap<>();
 

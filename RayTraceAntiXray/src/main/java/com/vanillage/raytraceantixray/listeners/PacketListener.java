@@ -23,15 +23,7 @@ import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import com.vanillage.raytraceantixray.nms.NmsCompat;
 import net.minecraft.world.level.chunk.LevelChunk;
 
-/**
- * Mirrors outgoing chunk / unload / respawn packets via PacketEvents (see
- * <a href="https://javadocs.packetevents.com/">packetevents javadoc</a>).
- * Chunk anti-xray data is matched using a per-player queue keyed by chunk column,
- * filled when Paper finishes obfuscation (see {@link com.vanillage.raytraceantixray.antixray.ChunkPacketBlockControllerAntiXray}).
- * <p>
- * {@link PacketSendEvent} may run on a Netty thread; any use of {@link Player}, worlds, or
- * {@link LevelChunk} is deferred to {@link Player#getScheduler()} (Folia / Canvas region rules).
- */
+
 public final class PacketListener extends PacketListenerAbstract {
     private final RayTraceAntiXray plugin;
 
@@ -64,9 +56,7 @@ public final class PacketListener extends PacketListenerAbstract {
         player.getScheduler().run(plugin, (ScheduledTask task) -> finishChunkData(player, chunkX, chunkZ), null);
     }
 
-    /**
-     * Runs on the player's region thread ({@link Player#getScheduler()}).
-     */
+
     private void finishChunkData(Player player, int chunkX, int chunkZ) {
         if (!player.isOnline()) {
             return;
@@ -75,8 +65,8 @@ public final class PacketListener extends PacketListenerAbstract {
         ChunkBlocks chunkBlocks = plugin.pollPendingChunkBlocks(player.getUniqueId(), chunkX, chunkZ);
 
         if (chunkBlocks == null) {
-            // RayTraceAntiXray is probably not enabled in this world (or other plugins bypass Anti-Xray),
-            // or Paper did not run shouldModify before getChunkPacketInfo for this send (see ChunkPacketBlockControllerAntiXray).
+
+
             Location location = player.getEyeLocation();
             ConcurrentMap<UUID, PlayerData> playerDataMap = plugin.getPlayerData();
             UUID uniqueId = player.getUniqueId();

@@ -12,9 +12,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import com.vanillage.raytraceantixray.util.BlockOcclusionCulling.BlockOcclusionGetter;
 import com.vanillage.raytraceantixray.util.bench.MockSectionLeapGetters;
 
-/**
- * Verifies section-leap traversal matches legacy DDA for the same {@link BlockOcclusionGetter}.
- */
+
 final class SectionLeapTraversalTest {
 
     private record Scenario(String label, int oreX, int oreY, int oreZ, double eyeX, double eyeY, double eyeZ, BlockOcclusionGetter getter) {

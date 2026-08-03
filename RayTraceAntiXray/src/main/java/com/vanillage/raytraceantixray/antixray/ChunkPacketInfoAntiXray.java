@@ -9,7 +9,7 @@ import net.minecraft.world.level.chunk.LevelChunk;
 public final class ChunkPacketInfoAntiXray extends ChunkPacketInfo<BlockState> implements Runnable {
 
     private final ChunkPacketBlockControllerAntiXray chunkPacketBlockControllerAntiXray;
-    /** Set from {@link ChunkPacketBlockControllerAntiXray#getChunkPacketInfo} when Paper calls {@link ChunkPacketBlockControllerAntiXray#shouldModify} first. */
+
     private final ServerPlayer targetPlayer;
     private LevelChunk[] nearbyChunks;
 

@@ -108,7 +108,7 @@ public final class RayTraceCallable implements Callable<Void> {
                     }
 
                     LevelChunkSection section = chunk.getSections()[sectionY - minSectionY];
-                    return section != null && !section.hasOnlyAir() && solidGlobal[ChunkPacketBlockControllerAntiXray.GLOBAL_BLOCKSTATE_PALETTE.idFor(getBlockState(section, x, y, z), PaletteResize.noResizeExpected())]; // Sections aren't null anymore. Unfortunately, LevelChunkSection#recalcBlockCounts() temporarily resets #nonEmptyBlockCount to 0 due to a Paper optimization.
+                    return section != null && !section.hasOnlyAir() && solidGlobal[ChunkPacketBlockControllerAntiXray.GLOBAL_BLOCKSTATE_PALETTE.idFor(getBlockState(section, x, y, z), PaletteResize.noResizeExpected())];
                 }
 
                 int sectionY = y >> 4;
@@ -125,7 +125,7 @@ public final class RayTraceCallable implements Callable<Void> {
                     }
 
                     LevelChunkSection section = chunk.getSections()[sectionY - minSectionY];
-                    return section != null && !section.hasOnlyAir() && solidGlobal[ChunkPacketBlockControllerAntiXray.GLOBAL_BLOCKSTATE_PALETTE.idFor(getBlockState(section, x, y, z), PaletteResize.noResizeExpected())]; // Sections aren't null anymore. Unfortunately, LevelChunkSection#recalcBlockCounts() temporarily resets #nonEmptyBlockCount to 0 due to a Paper optimization.
+                    return section != null && !section.hasOnlyAir() && solidGlobal[ChunkPacketBlockControllerAntiXray.GLOBAL_BLOCKSTATE_PALETTE.idFor(getBlockState(section, x, y, z), PaletteResize.noResizeExpected())];
                 }
 
                 if (section == null) {
@@ -170,11 +170,11 @@ public final class RayTraceCallable implements Callable<Void> {
 
                     section = chunk.getSections()[sectionY - minSectionY];
 
-                    if (section == null) { // Sections aren't null anymore.
+                    if (section == null) {
                         return false;
                     }
 
-                    if (section.hasOnlyAir()) { // Unfortunately, LevelChunkSection#recalcBlockCounts() temporarily resets #nonEmptyBlockCount to 0 due to a Paper optimization.
+                    if (section.hasOnlyAir()) {
                         section = null;
                         return false;
                     }
@@ -186,7 +186,6 @@ public final class RayTraceCallable implements Callable<Void> {
                     this.sectionY = sectionY;
 
                     if (chunk == null) {
-                        // section = null;
                         return UNLOADED_OCCLUDING;
                     }
 
@@ -199,11 +198,11 @@ public final class RayTraceCallable implements Callable<Void> {
 
                     section = chunk.getSections()[sectionY - minSectionY];
 
-                    if (section == null) { // Sections aren't null anymore.
+                    if (section == null) {
                         return false;
                     }
 
-                    if (section.hasOnlyAir()) { // Unfortunately, LevelChunkSection#recalcBlockCounts() temporarily resets #nonEmptyBlockCount to 0 due to a Paper optimization.
+                    if (section.hasOnlyAir()) {
                         section = null;
                         return false;
                     }
@@ -324,7 +323,7 @@ public final class RayTraceCallable implements Callable<Void> {
                     continue;
                 }
 
-                // Location/occlusion changes invalidate every chunk; otherwise only trace newly received chunks.
+
                 boolean chunkDirty = chunkBlocks.isDirty();
                 if (!chunkDirty && !forceRayTrace) {
                     continue;
@@ -370,7 +369,7 @@ public final class RayTraceCallable implements Callable<Void> {
 
                     if (distanceSquared < rehideDistanceSquared) {
                         int sectionY = y >> 4;
-                        // One cache init per block; viewing origin differs per location but chunk section is the same.
+
                         cachedSectionBlockOcclusionGetter.initializeCache(chunk, chunkX, sectionY, chunkZ);
 
                         for (int i = 0; i < locations.length; i++) {
@@ -411,7 +410,7 @@ public final class RayTraceCallable implements Callable<Void> {
                 }
             }
 
-            // Commit per-chunk dirty state only after the complete snapshot succeeds.
+
             for (ChunkBlocks dirtyChunk : dirtyChunks) {
                 dirtyChunk.markTraced();
             }
@@ -421,18 +420,11 @@ public final class RayTraceCallable implements Callable<Void> {
     }
 
     private static BlockState getBlockState(LevelChunkSection section, int x, int y, int z) {
-        // synchronized (section.getStates()) {
-        //     try {
-        //         section.getStates().acquire();
-                try {
-                    return section.getBlockState(x & 15, y & 15, z & 15);
-                } catch (MissingPaletteEntryException e) {
-                    return AIR;
-                }
-        //     } finally {
-        //         section.getStates().release();
-        //     }
-        // }
+        try {
+            return section.getBlockState(x & 15, y & 15, z & 15);
+        } catch (MissingPaletteEntryException e) {
+            return AIR;
+        }
     }
 
     private interface CachedSectionBlockOcclusionGetter extends BlockOcclusionGetter {

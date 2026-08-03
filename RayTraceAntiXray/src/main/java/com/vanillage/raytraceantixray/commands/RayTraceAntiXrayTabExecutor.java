@@ -55,7 +55,7 @@ public final class RayTraceAntiXrayTabExecutor implements TabExecutor {
                     }
                 }
             } else if (args[0].toLowerCase(Locale.ROOT).equals("reload")) {
-                // No sub-arguments.
+
             } else if (args[0].toLowerCase(Locale.ROOT).equals("reminder")) {
                 if (sender.hasPermission(PaperAntiXrayReminder.PERMISSION) && args.length == 2) {
                     if ("dismiss".startsWith(args[1].toLowerCase(Locale.ROOT))) {
