@@ -52,7 +52,7 @@ public final class ReminderState {
             try {
                 Files.deleteIfExists(temporaryFile.toPath());
             } catch (IOException ignored) {
-                // The original save failure is more useful.
+
             }
 
             return false;

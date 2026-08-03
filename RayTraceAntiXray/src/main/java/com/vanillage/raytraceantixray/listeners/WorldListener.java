@@ -35,14 +35,7 @@ public final class WorldListener implements Listener {
         handleLoad(plugin, event.getWorld());
     }
 
-    /**
-     * Paper initializes worlds before plugins enable; {@link WorldInitEvent} has already fired then.
-     * Call this from {@link org.bukkit.plugin.java.JavaPlugin#onEnable()} for every existing world as well.
-     * <p>
-     * Aligns with Paper 26.1.x {@link Level} init: engine-mode 1 (HIDE) uses {@link io.papermc.paper.antixray.ChunkPacketBlockControllerAntiXray},
-     * otherwise {@link ChunkPacketBlockController#NO_OPERATION_INSTANCE}. When ray-trace is off in {@code config.yml} but Paper anti-xray
-     * stays on, the stock Paper controller is restored so the plugin no longer wraps chunk packets.
-     */
+
     public static void handleLoad(RayTraceAntiXray plugin, World world) {
         FileConfiguration config = plugin.getConfig();
         String worldName = world.getName();

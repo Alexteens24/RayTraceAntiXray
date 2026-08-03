@@ -52,7 +52,6 @@ import net.minecraft.world.phys.Vec3;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 
 public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXrayCommandTarget {
-    // private volatile Configuration configuration;
     private boolean folia = false;
     private volatile boolean running = false;
     private volatile boolean timingsEnabled = false;
@@ -74,12 +73,8 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
         reminderState = new ReminderState(new File(getDataFolder(), "reminder.yml"), getLogger());
         FileConfiguration config = getConfig();
         config.options().copyDefaults(true);
-        // Add defaults.
-        // saveConfig();
-        // configuration = config;
-        // Initialize stuff.
 
-        // Folia-only type: not on Paper compile classpath when using paperDevBundle (Paper). Detect at runtime.
+
         try {
             Class<?> regionizedServer = Class.forName("io.papermc.paper.threadedregions.RegionizedServer");
             folia = regionizedServer.isInstance(getServer());
@@ -92,14 +87,14 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
         RayTraceAntiXrayMetrics.register(this, folia, config);
         startRayTraceSchedulerFromConfig(config);
 
-        // Block updates run per-player via PlayerListener + EntityScheduler (required on Folia/Canvas for world reads).
 
-        // Register events.
+
+
         PluginManager pluginManager = getServer().getPluginManager();
         pluginManager.registerEvents(new WorldListener(this), this);
         pluginManager.registerEvents(new PlayerListener(this), this);
         PlayerListener.registerExistingPlayers(this);
-        // Worlds load before plugins enable; WorldInitEvent already ran — patch controllers for existing worlds.
+
         for (World w : Bukkit.getWorlds()) {
             WorldListener.handleLoad(this, w);
         }
@@ -107,7 +102,6 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
 
         packetEventsChunkListener = new PacketListener(this);
         PacketEvents.getAPI().getEventManager().registerListener(packetEventsChunkListener);
-        // registerCommands();
         getCommand("raytraceantixray").setExecutor(new RayTraceAntiXrayTabExecutor(this));
         getLogger().info(getPluginMeta().getDisplayName() + " enabled");
     }
@@ -127,7 +121,7 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
                 PacketEvents.getAPI().getEventManager().unregisterListener(packetEventsChunkListener);
                 packetEventsChunkListener = null;
             } catch (Throwable ignored) {
-                // PacketEvents may already be torn down during shutdown.
+
             }
         }
 
@@ -174,7 +168,7 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
         getLogger().info(getPluginMeta().getDisplayName() + " disabled");
     }
 
-    /** First non-null wins as primary; additional throwables are {@link Throwable#addSuppressed}. */
+
     private static Throwable mergeThrowables(Throwable primary, Throwable next) {
         if (next == null) {
             return primary;
@@ -186,11 +180,7 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
         return primary;
     }
 
-    /**
-     * Reloads {@code config.yml}, restarts the ray-trace pool and async tick, reapplies per-world chunk controllers,
-     * and re-registers online players so {@link com.vanillage.raytraceantixray.tasks.RayTraceCallable} uses the new settings.
-     * Must run on the primary server thread.
-     */
+
     @Override
     public void reloadPluginConfiguration() {
         if (!Bukkit.isPrimaryThread()) {
@@ -281,10 +271,7 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
         return playerData;
     }
 
-    /**
-     * Replaces {@link PlayerData} while keeping the per-player block-update {@link ScheduledTask}
-     * (see {@link PlayerListener}) so disconnect / disable still cancel the correct task.
-     */
+
     public void replacePlayerData(UUID uniqueId, PlayerData newData) {
         PlayerData old = playerData.put(uniqueId, newData);
         if (old != null && old.getBlockUpdateTask() != null) {
@@ -408,7 +395,7 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
         ServerLevel serverLevel = ((CraftWorld) location.getWorld()).getHandle();
         net.minecraft.world.entity.Entity handle = ((CraftEntity) entity).getHandle();
 
-        // Logic copied from Minecraft client.
+
         for (int i = 0; i < 8; i++) {
             float cornerX = (float) ((i & 1) * 2 - 1);
             float cornerY = (float) ((i >> 1 & 1) * 2 - 1);

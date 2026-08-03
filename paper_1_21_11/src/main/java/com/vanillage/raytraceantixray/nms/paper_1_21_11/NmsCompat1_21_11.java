@@ -9,7 +9,7 @@ import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 
-/** Paper 1.21.11 NMS bindings (loaded at runtime via {@link NmsBridge}). */
+
 public final class NmsCompat1_21_11 implements NmsBridge {
     private static final Field GAME_MODE_LEVEL_FIELD = findField(ServerPlayerGameMode.class, "level");
 

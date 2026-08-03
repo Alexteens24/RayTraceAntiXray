@@ -2,7 +2,7 @@ package com.vanillage.raytraceantixray.util.bench;
 
 import com.vanillage.raytraceantixray.util.BlockOcclusionCulling.BlockOcclusionGetter;
 
-/** Mock {@link BlockOcclusionGetter} implementations for section-leap tests and benchmarks. */
+
 public final class MockSectionLeapGetters {
     private MockSectionLeapGetters() {
     }
@@ -53,7 +53,7 @@ public final class MockSectionLeapGetters {
         };
     }
 
-    /** {@code sectionHasOnlyAir} always false — leap path never taken; DDA vs leap should match. */
+
     public static BlockOcclusionGetter neverAirSections() {
         return new BlockOcclusionGetter() {
             @Override

@@ -12,7 +12,7 @@ import com.vanillage.raytraceantixray.nms.NmsCompat;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.chunk.LevelChunk;
 
-/** Runtime compatibility for Leaf's {@code async-chunk-send} feature. */
+
 public final class LeafAsyncChunkSendCompat {
     private static final String CONFIG_CLASS = "org.dreeam.leaf.config.modules.async.AsyncChunkSend";
     private static final String EXECUTOR_CLASS = "org.dreeam.leaf.async.chunk.AsyncChunkSend";
@@ -26,7 +26,7 @@ public final class LeafAsyncChunkSendCompat {
     private LeafAsyncChunkSendCompat() {
     }
 
-    /** Detects Leaf configuration and validates the ordering guarantee used by the target queues. */
+
     public static synchronized void initialize(Logger logger) {
         runtimeState = detectRuntimeState();
         switch (runtimeState) {
@@ -46,18 +46,18 @@ public final class LeafAsyncChunkSendCompat {
         return LEAF_PRESENT;
     }
 
-    /** True when Leaf's asynchronous constructor path is enabled, including fail-closed unsupported runtimes. */
+
     public static boolean isActive() {
         RuntimeState state = runtimeState;
         return state == RuntimeState.SUPPORTED_SINGLE_THREAD || state == RuntimeState.UNSUPPORTED_WORKER;
     }
 
-    /** True when Leaf builds chunk packets asynchronously, regardless of which modifyBlocks hook it calls. */
+
     public static boolean useLeafAsyncChunkSendPath() {
         return isActive();
     }
 
-    /** True only when target association is backed by Leaf's verified single-worker ordering. */
+
     public static boolean canAssociateTargets() {
         return runtimeState == RuntimeState.SUPPORTED_SINGLE_THREAD;
     }
@@ -77,7 +77,7 @@ public final class LeafAsyncChunkSendCompat {
         LAST_MISSING_TARGET_WARNING.set(Long.MIN_VALUE);
     }
 
-    /** Called from {@code shouldModify} before Leaf submits construction to its async chunk worker. */
+
     public static void onShouldModify(ServerPlayer player, LevelChunk chunk) {
         UUID playerId = player.getUUID();
         if (!canAssociateTargets()) {
@@ -89,7 +89,7 @@ public final class LeafAsyncChunkSendCompat {
         });
     }
 
-    /** Resolves the recipient without consuming targets queued for another dimension or chunk. */
+
     public static ServerPlayer pollTargetPlayer(LevelChunk chunk, Logger logger) {
         if (!canAssociateTargets()) {
             return null;
@@ -104,7 +104,7 @@ public final class LeafAsyncChunkSendCompat {
         return null;
     }
 
-    /** Rate-limits generic missing-context warnings on the normal Paper hand-off path as well. */
+
     public static boolean shouldLogMissingTargetWarning() {
         if (runtimeState == RuntimeState.UNSUPPORTED_WORKER) {
             return false;

@@ -20,7 +20,7 @@ public final class PlayerData implements Callable<Object> {
     private final AtomicLong chunksRevision = new AtomicLong();
     private final Queue<Result> results = new ConcurrentLinkedQueue<>();
     private Callable<?> callable;
-    /** Per-player block-update tick; cancelled on quit (Paper/Folia/Canvas region scheduler). */
+
     private volatile ScheduledTask blockUpdateTask;
 
     public PlayerData(VectorialLocation[] locations) {
@@ -35,12 +35,12 @@ public final class PlayerData implements Callable<Object> {
         this.locations = locations;
     }
 
-    /** Reports whether this snapshot differs from the last successfully traced snapshot. */
+
     public boolean isLocationsDirty(VectorialLocation[] snapshot) {
         return !Arrays.equals(tracedLocations.get(), snapshot);
     }
 
-    /** Records a location snapshot only after its ray trace completed successfully. */
+
     public void markLocationsTraced(VectorialLocation[] snapshot) {
         tracedLocations.set(snapshot);
     }
@@ -62,7 +62,7 @@ public final class PlayerData implements Callable<Object> {
         chunks.clear();
     }
 
-    /** Monotonically identifies the current chunk-set snapshot. */
+
     public long getChunksRevision() {
         return chunksRevision.get();
     }

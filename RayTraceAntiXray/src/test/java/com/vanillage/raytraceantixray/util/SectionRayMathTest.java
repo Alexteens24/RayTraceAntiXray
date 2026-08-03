@@ -22,7 +22,7 @@ final class SectionRayMathTest {
 
     @Test
     void sectionExitParameter_parallelRayOutsideSlab_returnsNaN() {
-        // Eye above the section containing (0,8,8); ray parallel to +X never intersects that section's Y slab.
+
         assertFalse(Double.isFinite(SectionRayMath.sectionExitParameter(0.5, 32.5, 8.5, 1., 0., 0., 0, 8, 8)));
     }
 

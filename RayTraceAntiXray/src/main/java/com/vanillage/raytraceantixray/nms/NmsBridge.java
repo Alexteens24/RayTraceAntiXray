@@ -10,7 +10,7 @@ import net.minecraft.world.level.Level;
 import org.bukkit.Bukkit;
 import org.jetbrains.annotations.Nullable;
 
-/** Version-specific NMS bindings; implementation is selected at runtime. */
+
 public interface NmsBridge {
 
     long chunkKey(int chunkX, int chunkZ);

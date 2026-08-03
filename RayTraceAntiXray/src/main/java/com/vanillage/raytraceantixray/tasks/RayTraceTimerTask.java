@@ -8,10 +8,7 @@ import com.vanillage.raytraceantixray.RayTraceAntiXray;
 
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 
-/**
- * Runs one ray-trace tick: schedules all player {@link com.vanillage.raytraceantixray.data.PlayerData} callables on the plugin executor pool.
- * Intended to be driven by {@link org.bukkit.Bukkit#getAsyncScheduler()} so it does not use a {@link java.util.Timer} thread.
- */
+
 public final class RayTraceTimerTask implements Consumer<ScheduledTask> {
     private final RayTraceAntiXray plugin;
 

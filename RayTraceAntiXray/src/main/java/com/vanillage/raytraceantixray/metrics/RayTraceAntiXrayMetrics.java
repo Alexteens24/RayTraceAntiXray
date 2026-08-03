@@ -9,7 +9,7 @@ import dev.faststats.ErrorTracker;
 import dev.faststats.bukkit.BukkitContext;
 import dev.faststats.data.Metric;
 
-/** bStats metrics (https://bstats.org/plugin/bukkit/RayTraceAntiXray/31528) and FastStats (https://faststats.dev). */
+
 public final class RayTraceAntiXrayMetrics {
     private static final int BSTATS_PLUGIN_ID = 31528;
     private static final String FASTSTATS_TOKEN = "6aae70a9d1f0808bc574bcf4e650cabd";

@@ -17,10 +17,10 @@ public final class BlockOcclusionCulling {
     private static final IntArrayConsumer[] NEARBY_BLOCKS_Y_PLANE_Z_POS_X_NEG = new IntArrayConsumer[] { INCREASE_Z, DECREASE_X, DECREASE_Z };
     private static final IntArrayConsumer[] NEARBY_BLOCKS_Y_PLANE_Z_NEG_X_POS = new IntArrayConsumer[] { DECREASE_Z, INCREASE_X, INCREASE_Z };
     private static final IntArrayConsumer[] NEARBY_BLOCKS_Y_PLANE_Z_NEG_X_NEG = new IntArrayConsumer[] { DECREASE_Z, DECREASE_X, INCREASE_Z };
-    private static final IntArrayConsumer[] NEARBY_BLOCKS_Z_PLANE_X_POS_Y_POS = new IntArrayConsumer[] { INCREASE_Y, INCREASE_X, DECREASE_Y /* INCREASE_X, INCREASE_Y, DECREASE_X */ };
-    private static final IntArrayConsumer[] NEARBY_BLOCKS_Z_PLANE_X_POS_Y_NEG = new IntArrayConsumer[] { DECREASE_Y, INCREASE_X, INCREASE_Y /* INCREASE_X, DECREASE_Y, DECREASE_X */ };
-    private static final IntArrayConsumer[] NEARBY_BLOCKS_Z_PLANE_X_NEG_Y_POS = new IntArrayConsumer[] { INCREASE_Y, DECREASE_X, DECREASE_Y /* DECREASE_X, INCREASE_Y, INCREASE_X */ };
-    private static final IntArrayConsumer[] NEARBY_BLOCKS_Z_PLANE_X_NEG_Y_NEG = new IntArrayConsumer[] { DECREASE_Y, DECREASE_X, INCREASE_Y /* DECREASE_X, DECREASE_Y, INCREASE_X */ };
+    private static final IntArrayConsumer[] NEARBY_BLOCKS_Z_PLANE_X_POS_Y_POS = new IntArrayConsumer[] { INCREASE_Y, INCREASE_X, DECREASE_Y  };
+    private static final IntArrayConsumer[] NEARBY_BLOCKS_Z_PLANE_X_POS_Y_NEG = new IntArrayConsumer[] { DECREASE_Y, INCREASE_X, INCREASE_Y  };
+    private static final IntArrayConsumer[] NEARBY_BLOCKS_Z_PLANE_X_NEG_Y_POS = new IntArrayConsumer[] { INCREASE_Y, DECREASE_X, DECREASE_Y  };
+    private static final IntArrayConsumer[] NEARBY_BLOCKS_Z_PLANE_X_NEG_Y_NEG = new IntArrayConsumer[] { DECREASE_Y, DECREASE_X, INCREASE_Y  };
     private final BlockIteratorFactory blockIteratorFactory;
     private final BlockOcclusionGetter blockOcclusionGetter;
     private final boolean frustumCullingEnabled;
@@ -30,9 +30,7 @@ public final class BlockOcclusionCulling {
         this(blockIteratorFactory, blockOcclusionGetter, frustumCullingEnabled, true);
     }
 
-    /**
-     * @param sectionLeapEnabled when {@code false}, voxel traversal never uses section skipping (legacy path).
-     */
+
     public BlockOcclusionCulling(BlockIteratorFactory blockIteratorFactory, BlockOcclusionGetter blockOcclusionGetter, boolean frustumCullingEnabled, boolean sectionLeapEnabled) {
         this.blockIteratorFactory = blockIteratorFactory;
         this.blockOcclusionGetter = blockOcclusionGetter;
@@ -51,7 +49,7 @@ public final class BlockOcclusionCulling {
     }
 
     public boolean isVisible(int x, int y, int z, double centerX, double centerY, double centerZ, double differenceX, double differenceY, double differenceZ, double distanceSquared, double directionX, double directionY, double directionZ) {
-        if (frustumCullingEnabled && (differenceX - directionX) * directionX + (differenceY - directionY) * directionY + (differenceZ - directionZ) * directionZ > 0.) { // Should actually be (difference - Math.sqrt(3.) * direction / 2.) * direction.
+        if (frustumCullingEnabled && (differenceX - directionX) * directionX + (differenceY - directionY) * directionY + (differenceZ - directionZ) * directionZ > 0.) {
             return false;
         }
 
@@ -260,10 +258,7 @@ public final class BlockOcclusionCulling {
             return isOccluding(x, y, z);
         }
 
-        /**
-         * When {@code true}, the entire 16³ section containing {@code (bx, by, bz)} is treated as free space
-         * so traversal may jump to the next section along the ray (conservative: {@code false} by default).
-         */
+
         default boolean sectionHasOnlyAir(int bx, int by, int bz) {
             return false;
         }

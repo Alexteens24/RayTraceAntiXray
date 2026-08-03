@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-/** CI runs without Leaf on the classpath; compat must stay inert on normal Paper builds. */
+
 class LeafAsyncChunkSendCompatTest {
 
     @AfterEach

@@ -46,7 +46,7 @@ public final class ChunkBlocks {
         return dirty.get();
     }
 
-    /** Marks this chunk clean only after its ray trace completed successfully. */
+
     public void markTraced() {
         dirty.set(false);
     }

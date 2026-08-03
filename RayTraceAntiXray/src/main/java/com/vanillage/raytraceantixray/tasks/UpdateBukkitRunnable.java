@@ -87,18 +87,18 @@ public final class UpdateBukkitRunnable extends BukkitRunnable implements Consum
         while ((result = results.poll()) != null) {
             ChunkBlocks chunkBlocks = result.getChunkBlocks();
 
-            // Check if the client still has the chunk loaded and if it wasn't resent in the meantime.
-            // Note that even if this check passes, the server could have already unloaded or resent the chunk but the corresponding packet is still in the packet queue.
-            // Technically the null check isn't necessary but we don't need to send an update packet because the client will unload the chunk.
+
+
+
             if (chunkBlocks.getChunk() == null || chunks.get(chunkBlocks.getKey()) != chunkBlocks) {
                 continue;
             }
 
             BlockPos block = result.getBlock();
 
-            // Similar to the null check above, this check isn't actually necessary.
-            // However, we don't need to send an update packet because the client will unload the chunk.
-            // Thus we can avoid loading the chunk just for the update packet.
+
+
+
             if (!world.isChunkLoaded(block.getX() >> 4, block.getZ() >> 4)) {
                 continue;
             }
@@ -146,17 +146,14 @@ public final class UpdateBukkitRunnable extends BukkitRunnable implements Consum
             }
         }
 
-        // Send via Connection#send so packets go through the normal outbound pipeline (encoding, debug handlers,
-        // compatibility with other plugins). Avoids raw Netty writes that could reorder relative to other outbound traffic.
+
+
         if (sendPacketsViaConnection(player, packetsToSend)) {
             stateUpdates.forEach(Runnable::run);
         }
     }
 
-    /**
-     * Sends {@link ClientboundBlockUpdatePacket} and optional block-entity packets through
-     * {@link ServerGamePacketListenerImpl#send(Packet)}, matching normal server behaviour for plugin interoperability.
-     */
+
     private static boolean sendPacketsViaConnection(Player player, List<Packet<?>> packets) {
         if (packets.isEmpty()) {
             return true;

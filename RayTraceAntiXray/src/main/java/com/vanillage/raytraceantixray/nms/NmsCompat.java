@@ -7,7 +7,7 @@ import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 
-/** Static facade over the runtime-selected {@link NmsBridge} implementation. */
+
 public final class NmsCompat {
     private NmsCompat() {
     }
