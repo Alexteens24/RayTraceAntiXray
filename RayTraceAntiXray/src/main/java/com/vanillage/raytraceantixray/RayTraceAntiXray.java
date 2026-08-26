@@ -394,7 +394,7 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
         double directionY = direction.getY();
         double directionZ = direction.getZ();
 
-        if (!isFinite(positionX, positionY, positionZ, directionX, directionY, directionZ)) {
+        if (world == null || !isFinite(positionX, positionY, positionZ, directionX, directionY, directionZ)) {
             return 0.;
         }
 
@@ -407,24 +407,28 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
         net.minecraft.world.entity.Entity handle = ((CraftEntity) entity).getHandle();
 
 
-        for (int i = 0; i < 8; i++) {
-            float cornerX = (float) ((i & 1) * 2 - 1);
-            float cornerY = (float) ((i >> 1 & 1) * 2 - 1);
-            float cornerZ = (float) ((i >> 2 & 1) * 2 - 1);
-            cornerX *= 0.1f;
-            cornerY *= 0.1f;
-            cornerZ *= 0.1f;
-            Vec3 corner = position.add(cornerX, cornerY, cornerZ);
-            Vec3 cornerMoved = new Vec3(positionX - directionX * maxZoom + (double) cornerX, positionY - directionY * maxZoom + (double) cornerY, positionZ - directionZ * maxZoom + (double) cornerZ);
-            BlockHitResult result = serverLevel.clip(new ClipContext(corner, cornerMoved, ClipContext.Block.VISUAL, ClipContext.Fluid.NONE, handle));
+        try {
+            for (int i = 0; i < 8; i++) {
+                float cornerX = (float) ((i & 1) * 2 - 1);
+                float cornerY = (float) ((i >> 1 & 1) * 2 - 1);
+                float cornerZ = (float) ((i >> 2 & 1) * 2 - 1);
+                cornerX *= 0.1f;
+                cornerY *= 0.1f;
+                cornerZ *= 0.1f;
+                Vec3 corner = position.add(cornerX, cornerY, cornerZ);
+                Vec3 cornerMoved = new Vec3(positionX - directionX * maxZoom + (double) cornerX, positionY - directionY * maxZoom + (double) cornerY, positionZ - directionZ * maxZoom + (double) cornerZ);
+                BlockHitResult result = serverLevel.clip(new ClipContext(corner, cornerMoved, ClipContext.Block.VISUAL, ClipContext.Fluid.NONE, handle));
 
-            if (result.getType() != HitResult.Type.MISS) {
-                double zoom = result.getLocation().distanceTo(position);
+                if (result.getType() != HitResult.Type.MISS) {
+                    double zoom = result.getLocation().distanceTo(position);
 
-                if (zoom < maxZoom) {
-                    maxZoom = zoom;
+                    if (zoom < maxZoom) {
+                        maxZoom = zoom;
+                    }
                 }
             }
+        } catch (RuntimeException ignored) {
+
         }
 
         return maxZoom;
@@ -435,6 +439,10 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
         int maxChunkX = (int) Math.floor(positionX + Math.abs(directionX) * maxZoom + 0.1) >> 4;
         int minChunkZ = (int) Math.floor(positionZ - Math.abs(directionZ) * maxZoom - 0.1) >> 4;
         int maxChunkZ = (int) Math.floor(positionZ + Math.abs(directionZ) * maxZoom + 0.1) >> 4;
+
+        if ((long) maxChunkX - minChunkX > 1 || (long) maxChunkZ - minChunkZ > 1) {
+            return false;
+        }
 
         for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
             for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
