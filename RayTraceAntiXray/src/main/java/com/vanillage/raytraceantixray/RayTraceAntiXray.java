@@ -383,6 +383,7 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
     }
 
     private static double getMaxZoom(Entity entity, VectorialLocation location, double maxZoom) {
+        World world = location.getWorld();
         Vector vector = location.getVector();
         Vec3 position = new Vec3(vector.getX(), vector.getY(), vector.getZ());
         double positionX = position.x;
@@ -392,30 +393,75 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
         double directionX = direction.getX();
         double directionY = direction.getY();
         double directionZ = direction.getZ();
-        ServerLevel serverLevel = ((CraftWorld) location.getWorld()).getHandle();
+
+        if (world == null || !isFinite(positionX, positionY, positionZ, directionX, directionY, directionZ)) {
+            return 0.;
+        }
+
+        ServerLevel serverLevel = ((CraftWorld) world).getHandle();
+
+        if (!areCameraSegmentsLoaded(serverLevel, positionX, positionZ, directionX, directionZ, maxZoom)) {
+            return 0.;
+        }
+
         net.minecraft.world.entity.Entity handle = ((CraftEntity) entity).getHandle();
 
 
-        for (int i = 0; i < 8; i++) {
-            float cornerX = (float) ((i & 1) * 2 - 1);
-            float cornerY = (float) ((i >> 1 & 1) * 2 - 1);
-            float cornerZ = (float) ((i >> 2 & 1) * 2 - 1);
-            cornerX *= 0.1f;
-            cornerY *= 0.1f;
-            cornerZ *= 0.1f;
-            Vec3 corner = position.add(cornerX, cornerY, cornerZ);
-            Vec3 cornerMoved = new Vec3(positionX - directionX * maxZoom + (double) cornerX, positionY - directionY * maxZoom + (double) cornerY, positionZ - directionZ * maxZoom + (double) cornerZ);
-            BlockHitResult result = serverLevel.clip(new ClipContext(corner, cornerMoved, ClipContext.Block.VISUAL, ClipContext.Fluid.NONE, handle));
+        try {
+            for (int i = 0; i < 8; i++) {
+                float cornerX = (float) ((i & 1) * 2 - 1);
+                float cornerY = (float) ((i >> 1 & 1) * 2 - 1);
+                float cornerZ = (float) ((i >> 2 & 1) * 2 - 1);
+                cornerX *= 0.1f;
+                cornerY *= 0.1f;
+                cornerZ *= 0.1f;
+                Vec3 corner = position.add(cornerX, cornerY, cornerZ);
+                Vec3 cornerMoved = new Vec3(positionX - directionX * maxZoom + (double) cornerX, positionY - directionY * maxZoom + (double) cornerY, positionZ - directionZ * maxZoom + (double) cornerZ);
+                BlockHitResult result = serverLevel.clip(new ClipContext(corner, cornerMoved, ClipContext.Block.VISUAL, ClipContext.Fluid.NONE, handle));
 
-            if (result.getType() != HitResult.Type.MISS) {
-                double zoom = result.getLocation().distanceTo(position);
+                if (result.getType() != HitResult.Type.MISS) {
+                    double zoom = result.getLocation().distanceTo(position);
 
-                if (zoom < maxZoom) {
-                    maxZoom = zoom;
+                    if (zoom < maxZoom) {
+                        maxZoom = zoom;
+                    }
+                }
+            }
+        } catch (RuntimeException ignored) {
+
+        }
+
+        return maxZoom;
+    }
+
+    private static boolean areCameraSegmentsLoaded(ServerLevel serverLevel, double positionX, double positionZ, double directionX, double directionZ, double maxZoom) {
+        int minChunkX = (int) Math.floor(positionX - Math.abs(directionX) * maxZoom - 0.1) >> 4;
+        int maxChunkX = (int) Math.floor(positionX + Math.abs(directionX) * maxZoom + 0.1) >> 4;
+        int minChunkZ = (int) Math.floor(positionZ - Math.abs(directionZ) * maxZoom - 0.1) >> 4;
+        int maxChunkZ = (int) Math.floor(positionZ + Math.abs(directionZ) * maxZoom + 0.1) >> 4;
+
+        if ((long) maxChunkX - minChunkX > 1 || (long) maxChunkZ - minChunkZ > 1) {
+            return false;
+        }
+
+        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
+            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
+                if (serverLevel.getChunkIfLoaded(chunkX, chunkZ) == null) {
+                    return false;
                 }
             }
         }
 
-        return maxZoom;
+        return true;
+    }
+
+    private static boolean isFinite(double... values) {
+        for (double value : values) {
+            if (!Double.isFinite(value)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
