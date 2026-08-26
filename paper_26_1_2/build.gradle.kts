@@ -11,7 +11,7 @@ java {
 
 dependencies {
     compileOnly(project(":"))
-    paperweight.paperDevBundle("26.1.2.build.65-stable")
+    paperweight.paperDevBundle("26.1.2.build.74-stable")
 }
 
 paperweight.reobfArtifactConfiguration = ReobfArtifactConfiguration.MOJANG_PRODUCTION
