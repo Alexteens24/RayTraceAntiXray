@@ -383,6 +383,7 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
     }
 
     private static double getMaxZoom(Entity entity, VectorialLocation location, double maxZoom) {
+        World world = location.getWorld();
         Vector vector = location.getVector();
         Vec3 position = new Vec3(vector.getX(), vector.getY(), vector.getZ());
         double positionX = position.x;
@@ -392,7 +393,17 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
         double directionX = direction.getX();
         double directionY = direction.getY();
         double directionZ = direction.getZ();
-        ServerLevel serverLevel = ((CraftWorld) location.getWorld()).getHandle();
+
+        if (!isFinite(positionX, positionY, positionZ, directionX, directionY, directionZ)) {
+            return 0.;
+        }
+
+        ServerLevel serverLevel = ((CraftWorld) world).getHandle();
+
+        if (!areCameraSegmentsLoaded(serverLevel, positionX, positionZ, directionX, directionZ, maxZoom)) {
+            return 0.;
+        }
+
         net.minecraft.world.entity.Entity handle = ((CraftEntity) entity).getHandle();
 
 
@@ -417,5 +428,32 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
         }
 
         return maxZoom;
+    }
+
+    private static boolean areCameraSegmentsLoaded(ServerLevel serverLevel, double positionX, double positionZ, double directionX, double directionZ, double maxZoom) {
+        int minChunkX = (int) Math.floor(positionX - Math.abs(directionX) * maxZoom - 0.1) >> 4;
+        int maxChunkX = (int) Math.floor(positionX + Math.abs(directionX) * maxZoom + 0.1) >> 4;
+        int minChunkZ = (int) Math.floor(positionZ - Math.abs(directionZ) * maxZoom - 0.1) >> 4;
+        int maxChunkZ = (int) Math.floor(positionZ + Math.abs(directionZ) * maxZoom + 0.1) >> 4;
+
+        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
+            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
+                if (serverLevel.getChunkIfLoaded(chunkX, chunkZ) == null) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private static boolean isFinite(double... values) {
+        for (double value : values) {
+            if (!Double.isFinite(value)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
