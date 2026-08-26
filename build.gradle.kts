@@ -4,8 +4,8 @@ import xyz.jpenilla.runpaper.task.RunServer
 plugins {
     `my-conventions`
     id("io.papermc.paperweight.userdev")
-    id("com.gradleup.shadow") version "9.3.1"
-    id("xyz.jpenilla.run-paper") version "3.0.2"
+    id("com.gradleup.shadow") version "9.6.1"
+    id("xyz.jpenilla.run-paper") version "3.1.0"
 }
 
 group = "com.vanillage.raytraceantixray"
@@ -26,20 +26,20 @@ repositories {
 }
 
 dependencies {
-    paperweight.paperDevBundle("26.2.build.56-alpha")
-    compileOnly("com.github.retrooper:packetevents-spigot:2.12.1")
+    paperweight.paperDevBundle("26.2.build.119-stable")
+    compileOnly("com.github.retrooper:packetevents-spigot:2.13.0")
     implementation("org.bstats:bstats-bukkit:3.2.1")
-    implementation("dev.faststats.metrics:bukkit:0.27.1")
+    implementation("dev.faststats.metrics:bukkit:0.29.4")
 
     runtimeOnly(project(":paper_1_21_11"))
     runtimeOnly(project(":paper_26_1_2"))
     runtimeOnly(project(":paper_26_2"))
 
-    testImplementation(platform("org.junit:junit-bom:5.11.4"))
+    testImplementation(platform("org.junit:junit-bom:6.1.3"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-    testImplementation("org.mockito:mockito-junit-jupiter:5.14.2")
-    testImplementation(paperweight.paperDevBundle("26.2.build.56-alpha"))
+    testImplementation("org.mockito:mockito-junit-jupiter:5.23.0")
+    testImplementation(paperweight.paperDevBundle("26.2.build.119-stable"))
     testImplementation(sourceSets.main.get().output.classesDirs)
 }
 
@@ -120,11 +120,9 @@ tasks.shadowJar {
     from(project(":paper_26_2").tasks.jar.map { zipTree(it.archiveFile) })
 
     dependencies {
-        include(dependency("org.bstats:bstats-bukkit:3.2.1"))
-        include(dependency("org.bstats:bstats-base:3.2.1"))
-        include(dependency("dev.faststats.metrics:bukkit:0.27.1"))
-        include(dependency("dev.faststats.metrics:core:0.27.1"))
-        include(dependency("dev.faststats.metrics:config:0.27.1"))
+        include(dependency("org.bstats:bstats-bukkit:.*"))
+        include(dependency("org.bstats:bstats-base:.*"))
+        include(dependency("dev.faststats.metrics:.*:.*"))
     }
 
     relocate("org.bstats", project.group.toString())
