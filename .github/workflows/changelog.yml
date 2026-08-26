@@ -54,8 +54,22 @@ jobs:
       - name: Append to job Summary
         run: cat changelog-body.md >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Draft GitHub Release (tags only)
+      - name: Check for existing published release (tags only)
+        id: release_guard
         if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if gh release view "${GITHUB_REF_NAME}" --json isDraft --jq '.isDraft' 2>/dev/null | grep -q 'false'; then
+            echo "A published release already exists for ${GITHUB_REF_NAME}; leaving it untouched."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Draft GitHub Release (tags only, no existing published release)
+        if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && steps.release_guard.outputs.exists != 'true'
         uses: softprops/action-gh-release@v2
         with:
           draft: true
