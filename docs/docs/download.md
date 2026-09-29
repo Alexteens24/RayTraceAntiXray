@@ -8,8 +8,10 @@ Place the `.jar` in your server's `plugins/` folder and follow the [Installation
 
 | Minecraft / Paper | Server Java |
 |-------------------|-------------|
-| **1.21.11** | 21+ |
+| **26.3** | 25 recommended |
+| **26.2** | 25 recommended |
 | **26.1.2** (26.x) | 25 recommended |
+| **1.21.11** | 21+ |
 
 One universal JAR covers all supported versions — no classifier suffix.
 

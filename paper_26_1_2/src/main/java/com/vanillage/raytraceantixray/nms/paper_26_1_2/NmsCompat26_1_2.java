@@ -1,13 +1,20 @@
 package com.vanillage.raytraceantixray.nms.paper_26_1_2;
 
+import com.vanillage.raytraceantixray.antixray.ChunkPacketInfoAntiXrayState;
 import com.vanillage.raytraceantixray.nms.NmsBridge;
+import io.papermc.paper.antixray.ChunkPacketInfo;
 import java.lang.reflect.Field;
 import java.util.concurrent.Executor;
+import net.minecraft.network.protocol.game.ClientboundLevelChunkPacketData;
+import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayerGameMode;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.LevelChunk;
+import org.jetbrains.annotations.Nullable;
 
 
 public final class NmsCompat26_1_2 implements NmsBridge {
@@ -50,6 +57,19 @@ public final class NmsCompat26_1_2 implements NmsBridge {
         } catch (IllegalAccessException e) {
             throw new IllegalStateException("Cannot read ServerPlayerGameMode.level", e);
         }
+    }
+
+    @Override
+    public ChunkPacketInfo<BlockState> createChunkPacketInfo(ChunkPacketInfoAntiXrayState state, @Nullable ClientboundLevelChunkWithLightPacket chunkPacket, LevelChunk chunk) {
+        if (chunkPacket == null) {
+            throw new IllegalStateException("Paper 26.1.2 requires the chunk packet to build the chunk packet state");
+        }
+        return new ChunkPacketInfoAntiXray26_1_2(chunkPacket, chunk, state);
+    }
+
+    @Override
+    public ClientboundLevelChunkPacketData chunkPacketData(ClientboundLevelChunkWithLightPacket chunkPacket) {
+        return chunkPacket.getChunkData();
     }
 
     private static Field findField(Class<?> owner, String name) {

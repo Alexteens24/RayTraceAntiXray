@@ -247,9 +247,24 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
         return willModify;
     }
 
+    /**
+     * Paper 26.3 entry point: the chunk packet is not known yet, the controller state is created from the
+     * chunk and the packet is attached by {@code ClientboundLevelChunkWithLightPacket} afterwards.
+     */
     @Override
-    public ChunkPacketInfoAntiXray getChunkPacketInfo(ClientboundLevelChunkWithLightPacket chunkPacket, LevelChunk chunk) {
+    public ChunkPacketInfo<BlockState> getChunkPacketInfo(LevelChunk chunk) {
+        return NmsCompat.createChunkPacketInfo(resolveChunkPacketState(chunk), null, chunk);
+    }
 
+    /**
+     * Paper 1.21.11 / 26.1.2 / 26.2 entry point. Not an override on 26.3, where the base class no longer
+     * declares this signature.
+     */
+    public ChunkPacketInfo<BlockState> getChunkPacketInfo(ClientboundLevelChunkWithLightPacket chunkPacket, LevelChunk chunk) {
+        return NmsCompat.createChunkPacketInfo(resolveChunkPacketState(chunk), chunkPacket, chunk);
+    }
+
+    private ChunkPacketInfoAntiXrayState resolveChunkPacketState(LevelChunk chunk) {
         ServerPlayer targetPlayer;
         if (LeafAsyncChunkSendCompat.useLeafAsyncChunkSendPath()) {
             targetPlayer = LeafAsyncChunkSendCompat.pollTargetPlayer(chunk, plugin.getLogger());
@@ -257,7 +272,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             targetPlayer = ANTIXRAY_CHUNK_SEND_TARGET.get();
             ANTIXRAY_CHUNK_SEND_TARGET.remove();
         }
-        return new ChunkPacketInfoAntiXray(chunkPacket, chunk, this, targetPlayer);
+        return new ChunkPacketInfoAntiXrayState(this, targetPlayer);
     }
 
     @Override
@@ -566,7 +581,7 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
 
         if (!blockEntities.isEmpty()) {
             try {
-                List<?> blockEntitiesData = (List<?>) BLOCK_ENTITIES_DATA_FIELD.get(chunkPacketInfoAntiXray.getChunkPacket().getChunkData());
+                List<?> blockEntitiesData = (List<?>) BLOCK_ENTITIES_DATA_FIELD.get(NmsCompat.chunkPacketData(chunkPacketInfoAntiXray.getChunkPacket()));
                 ChunkPos chunkPos = chunk.getPos();
                 int minX = chunkPos.getMinBlockX();
                 int minZ = chunkPos.getMinBlockZ();
@@ -574,7 +589,8 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
 
                 blockEntitiesData.removeIf(blockEntityData -> {
                     try {
-                        int packedXZ = PACKED_X_Z_FIELD.getInt(blockEntityData);
+                        // Paper 26.3 stores this as a byte, so sign extension has to be masked off first.
+                        int packedXZ = PACKED_X_Z_FIELD.getInt(blockEntityData) & 0xFF;
                         return blockEntities.contains(mutableBlockPos.set(minX + (packedXZ >>> 4), Y_FIELD.getInt(blockEntityData), minZ + (packedXZ & 15)));
                     } catch (IllegalAccessException e) {
                         throw new RuntimeException(e);

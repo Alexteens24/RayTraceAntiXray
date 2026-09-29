@@ -8,13 +8,13 @@ This page covers building, testing, and the technical architecture of this fork.
 ./gradlew build
 ```
 
-Produces `build/libs/RayTraceAntiXray-<version>.jar` — one universal JAR for Paper 1.21.11 and 26.1.2.
+Produces `build/libs/RayTraceAntiXray-<version>.jar` — one universal JAR for Paper 26.3, 26.2 and 26.1.2.
 
 | Area | This fork |
 |------|-----------|
 | Build system | Gradle multi-module (`build.gradle.kts`, Paperweight) |
 | Git layout | Single `main` branch |
-| Paper API | Main code: `paperDevBundle` 26.1.2; per-version NMS in `paper_1_21_11` / `paper_26_1_2` |
+| Paper API | Main code: `paperDevBundle` 26.3; per-version NMS in `paper_26_3` / `paper_26_2` / `paper_26_1_2` / `paper_1_21_11` |
 | Java bytecode | 21 (Gradle toolchain 25) |
 | Output JAR | `RayTraceAntiXray-<version>.jar` (no classifier) |
 
@@ -31,20 +31,24 @@ Produces `build/libs/RayTraceAntiXray-<version>.jar` — one universal JAR for P
 ## Local test servers
 
 ```bash
-./gradlew run1_21_11
+./gradlew run26_3
+./gradlew run26_2
 ./gradlew run26_1_2
+./gradlew run1_21_11
 ```
 
 ## Multi-NMS (single JAR)
 
 Version-specific NMS bindings live in Gradle subprojects and are selected at runtime via `NmsBridge`:
 
-| Subproject | Runtime class |
-|------------|---------------|
-| `paper_1_21_11` | `nms.paper_1_21_11.NmsCompat1_21_11` |
-| `paper_26_1_2` | `nms.paper_26_1_2.NmsCompat26_1_2` |
+| Subproject | Runtime class | `ChunkPacketInfo` constructor |
+|------------|---------------|------------------------------|
+| `paper_26_3` | `nms.paper_26_3.NmsCompat26_3` | `ChunkPacketInfo(chunk)` + `setChunkPacket(...)` |
+| `paper_26_2` | `nms.paper_26_2.NmsCompat26_2` | `ChunkPacketInfo(chunkPacket, chunk)` |
+| `paper_26_1_2` | `nms.paper_26_1_2.NmsCompat26_1_2` | `ChunkPacketInfo(chunkPacket, chunk)` |
+| `paper_1_21_11` | `nms.paper_1_21_11.NmsCompat1_21_11` | `ChunkPacketInfo(chunkPacket, chunk)` |
 
-Main code calls `NmsCompat` static methods — never `ChunkPos.pack` / `asLong` directly.
+Main code calls `NmsCompat` static methods — never `ChunkPos.pack` / `asLong`, `ClientboundLevelChunkWithLightPacket.getChunkData()` / `chunkData()` directly.
 
 ## PacketEvents
 

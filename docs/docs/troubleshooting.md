@@ -31,7 +31,7 @@ On [Leaf](https://github.com/Winds-Studio/Leaf), enabling **`async-chunk-send`**
 - **Paper, Purpur, Folia, Canvas, etc.:** compat layer is inactive; standard ThreadLocal + `modifyBlocks` path only.
 - **Leaf with async chunk send disabled:** same as stock Paper.
 - **Leaf 1.21.11/26.1.2:** the legacy `leaf$modifyBlocks` hook runs obfuscation inline.
-- **Leaf 26.2+:** Leaf calls standard `modifyBlocks`; RayTraceAntiXray detects the async runtime and routes it to the same inline path.
+- **Leaf 26.2+ (incl. 26.3):** Leaf calls standard `modifyBlocks`; RayTraceAntiXray detects the async runtime and routes it to the same inline path.
 
 No extra configuration is required — detection is automatic when the Leaf class is present.
 

@@ -12,7 +12,7 @@ Upstream goal: RayTraceAntiXray for Paper Anti-Xray **engine-mode 1** with serve
 |------|-----------|
 | Build system | **Gradle** multi-module (`build.gradle.kts`, Paperweight), not the older multi-module Maven layout |
 | Git layout | Single **`main`** branch; one universal plugin JAR |
-| Paper API | Main code: `paperDevBundle` **26.1.2**; per-version NMS in `paper_1_21_11` / `paper_26_1_2` |
+| Paper API | Main code: `paperDevBundle` **26.3**; per-version NMS in `paper_26_3` / `paper_26_2` / `paper_26_1_2` / `paper_1_21_11` |
 | Java bytecode | **21** (toolchain 25 for Gradle); runs on Java 21+ servers |
 | Runtime JAR | **`MOJANG_PRODUCTION`** — Mojang-mapped plugin JAR for Paper 1.20.5+ |
 | Output JAR | `RayTraceAntiXray-<version>.jar` (no per-target classifier) |
@@ -25,12 +25,42 @@ Shared code lives in `RayTraceAntiXray/src/main/java`. Version-specific NMS bind
 
 | Subproject | Runtime class | Bindings |
 |------------|---------------|----------|
-| **`paper_1_21_11`** | `nms.paper_1_21_11.NmsCompat1_21_11` | `ChunkPos.asLong`, `chunkPos.x` / `.z`, `processedDisconnect`, … |
-| **`paper_26_1_2`** | `nms.paper_26_1_2.NmsCompat26_1_2` | `ChunkPos.pack`, `chunkPos.x()` / `.z()`, `isDisconnected()`, … |
+| **`paper_26_3`** | `nms.paper_26_3.NmsCompat26_3` | `ChunkPos.pack`, `chunkData()`, `ChunkPacketInfo(chunk)`, `onPlayerLeftClickBlock(Level, …)` |
+| **`paper_26_2`** | `nms.paper_26_2.NmsCompat26_2` | `ChunkPos.pack`, `chunkPos.x()` / `.z()`, `getChunkData()`, `ChunkPacketInfo(packet, chunk)`, reflected `MinecraftServer.executor` |
+| **`paper_26_1_2`** | `nms.paper_26_1_2.NmsCompat26_1_2` | `ChunkPos.pack`, `chunkPos.x()` / `.z()`, `isDisconnected()`, `getChunkData()`, reflected `ServerPlayerGameMode.level` |
+| **`paper_1_21_11`** | `nms.paper_1_21_11.NmsCompat1_21_11` | `ChunkPos.asLong`, `chunkPos.x` / `.z`, `processedDisconnect`, `getChunkData()` |
 
-At runtime, `NmsBridge.Holder` detects `ServerBuildInfo.minecraftVersionId()` (fallback `Bukkit.getMinecraftVersion()`) and loads the matching implementation. Main code calls **`NmsCompat`** static methods — never `ChunkPos.pack` / `asLong` directly.
+At runtime, `NmsBridge.Holder` detects `ServerBuildInfo.minecraftVersionId()` (fallback `Bukkit.getMinecraftVersion()`) and loads the matching implementation. Main code calls **`NmsCompat`** static methods — never `ChunkPos.pack` / `asLong` / `getChunkData()` directly.
 
 **`BlockState#is(Block)`** is not used; solid-mask init uses **`blockState.getBlock() == Blocks.…`** (works on both targets).
+
+---
+
+## Paper 26.3 — Anti-Xray chunk packet API changes
+
+Paper 26.3 reworked the chunk-packet Anti-Xray entry points. This fork keeps a single universal JAR by
+isolating each difference in the NMS subprojects:
+
+1. **`ChunkPacketInfo` construction.** 26.3 takes only the chunk (`new ChunkPacketInfo(chunk)`) and the
+   packet is attached afterwards by `ClientboundLevelChunkWithLightPacket` through `setChunkPacket(...)`.
+   1.21.11 / 26.1.2 / 26.2 still take `(chunkPacket, chunk)`. The concrete `ChunkPacketInfo` subclass
+   therefore lives in each NMS subproject (`ChunkPacketInfoAntiXray26_3`, `…26_2`, `…26_1_2`, `…1_21_11`)
+   and is created through `NmsBridge.createChunkPacketInfo`.
+2. **`getChunkPacketInfo(...)` signature.** The controller now declares **both** overloads: the 26.3
+   `(LevelChunk)` one with `@Override` and the legacy `(ClientboundLevelChunkWithLightPacket, LevelChunk)`
+   one without it. Whichever signature the running Paper declares is the one that gets called.
+3. **`ClientboundLevelChunkWithLightPacket#getChunkData()` → `chunkData()`.** Reached through
+   `NmsBridge.chunkPacketData`, so the block-entity filter keeps working on every target.
+4. **`BlockEntityInfo.packedXZ` narrowed from `int` to `byte`.** `Field#getInt` sign-extends it, so the
+   block-entity filter masks the value with `0xFF` before unpacking. The masking is a no-op on older
+   versions, where the field is still a positive `int`.
+5. **`onPlayerLeftClickBlock`** takes `Level` instead of `ServerPlayerGameMode` (see the note above: both
+   overloads are declared).
+
+Shared chunk-packet state (target player, nearby chunk cache, obfuscation hand-off) lives in the main
+module in `ChunkPacketInfoAntiXrayState`, so the per-version subclasses stay a few lines each.
+`ChunkPacketInfoAntiXray` is a plain accessor interface over `ChunkPacketInfo`; every accessor it declares
+is identical across all supported versions.
 
 ---
 
@@ -111,12 +141,12 @@ Command permissions and usage strings: **`plugin.yml`**, **`README.txt`** (saved
 
 ## Leaf — `async-chunk-send`
 
-On [Leaf](https://github.com/Winds-Studio/Leaf), enabling **`async-chunk-send`** in `leaf-global.yml` builds chunk packets on a dedicated async thread. Leaf 1.21.11 and 26.1.2 call **`leaf$modifyBlocks`**; Leaf 26.2 calls Paper's standard **`modifyBlocks`** entry point from the async worker. Both variants break Paper’s usual same-thread pairing of **`shouldModify`** → **`getChunkPacketInfo`**.
+On [Leaf](https://github.com/Winds-Studio/Leaf), enabling **`async-chunk-send`** in `leaf-global.yml` builds chunk packets on a dedicated async thread. Leaf 1.21.11 and 26.1.2 call **`leaf$modifyBlocks`**; Leaf 26.2 and 26.3 call Paper's standard **`modifyBlocks`** entry point from the async worker. Both variants break Paper’s usual same-thread pairing of **`shouldModify`** → **`getChunkPacketInfo`**.
 
 **`LeafAsyncChunkSendCompat`** (runtime-detected via reflection, no Leaf compile dependency):
 
 - Target queues from **`shouldModify`** (server thread) to **`getChunkPacketInfo`** (async thread), keyed by dimension and chunk column so an out-of-order chunk cannot consume another chunk's player context.
-- Multiple sends of the same dimension/chunk remain FIFO. At startup the plugin verifies Leaf's executor is a `ThreadPoolExecutor` with exactly one worker, which is the ordering model used by supported Leaf 1.21.11, 26.1.2, and 26.2 builds.
+- Multiple sends of the same dimension/chunk remain FIFO. At startup the plugin verifies Leaf's executor is a `ThreadPoolExecutor` with exactly one worker, which is the ordering model used by supported Leaf 1.21.11, 26.1.2, 26.2 and 26.3 builds.
 - If Leaf enables async chunk send with an unknown or multi-worker executor, chunk association fails closed and a startup error instructs the operator to disable `async-chunk-send`; Paper Anti-Xray obfuscation still runs, but ray-trace reveal tracking is not assigned to a possibly wrong player.
 - Player quit, config reload, and plugin disable remove pending player targets. Empty per-chunk queues are removed atomically.
 - **`leaf$modifyBlocks`** (legacy Leaf) and **`modifyBlocks`** (Leaf 26.2+) share the same inline obfuscation path on Leaf's chunk-send thread.
@@ -136,6 +166,10 @@ Besides Paper (and Folia if used), **PacketEvents** (Spigot/Paper build) is requ
 ## Acknowledgements
 
 The dirty-tracking approach and supporting data-structure design were inspired by [TauCu's RayTraceAntiXray fork](https://github.com/TauCu/RayTraceAntiXray). This fork adapts those ideas to its multi-version Paper/Leaf architecture.
+
+The Paper 26.3 Anti-Xray API rework (see above) mirrors the change made upstream in
+[stonar96/RayTraceAntiXray](https://github.com/stonar96/RayTraceAntiXray) and
+[TauCu/RayTraceAntiXray](https://github.com/TauCu/RayTraceAntiXray).
 
 ---
 

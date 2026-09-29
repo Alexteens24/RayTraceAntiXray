@@ -4,7 +4,7 @@
 
 | Requirement | Specification |
 |-------------|---------------|
-| **Minecraft / Paper** | 1.21.11 or 26.1.2 |
+| **Minecraft / Paper** | 26.3 (also 26.2 and 26.1.2) |
 | **Server Java** | 21+ (25 recommended for 26.x) |
 | **Server software** | [Paper](https://papermc.io/downloads/paper) or Folia-capable Paper fork |
 | **Paper Anti-Xray** | Enabled with **`engine-mode: 1`** ([documentation](https://docs.papermc.io/paper/anti-xray/)) |

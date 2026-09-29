@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "com.vanillage.raytraceantixray"
-version = "1.17.7"
+version = "1.18.0"
 description = "Paper plugin for server-side async multithreaded ray tracing to hide ores that are exposed to air using Paper Anti-Xray engine-mode 1."
 
 java {
@@ -26,20 +26,21 @@ repositories {
 }
 
 dependencies {
-    paperweight.paperDevBundle("26.2.build.119-stable")
-    compileOnly("com.github.retrooper:packetevents-spigot:2.13.0")
+    paperweight.paperDevBundle("26.3.build.135-beta")
+    compileOnly("com.github.retrooper:packetevents-spigot:2.14.0")
     implementation("org.bstats:bstats-bukkit:3.2.1")
     implementation("dev.faststats.metrics:bukkit:0.29.4")
 
     runtimeOnly(project(":paper_1_21_11"))
     runtimeOnly(project(":paper_26_1_2"))
     runtimeOnly(project(":paper_26_2"))
+    runtimeOnly(project(":paper_26_3"))
 
     testImplementation(platform("org.junit:junit-bom:6.1.3"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation("org.mockito:mockito-junit-jupiter:5.23.0")
-    testImplementation(paperweight.paperDevBundle("26.2.build.119-stable"))
+    testImplementation(paperweight.paperDevBundle("26.3.build.135-beta"))
     testImplementation(sourceSets.main.get().output.classesDirs)
 }
 
@@ -114,10 +115,11 @@ tasks.shadowJar {
         duplicatesStrategy = DuplicatesStrategy.INCLUDE
     }
 
-    dependsOn(":paper_1_21_11:jar", ":paper_26_1_2:jar", ":paper_26_2:jar")
+    dependsOn(":paper_1_21_11:jar", ":paper_26_1_2:jar", ":paper_26_2:jar", ":paper_26_3:jar")
     from(project(":paper_1_21_11").tasks.jar.map { zipTree(it.archiveFile) })
     from(project(":paper_26_1_2").tasks.jar.map { zipTree(it.archiveFile) })
     from(project(":paper_26_2").tasks.jar.map { zipTree(it.archiveFile) })
+    from(project(":paper_26_3").tasks.jar.map { zipTree(it.archiveFile) })
 
     dependencies {
         include(dependency("org.bstats:bstats-bukkit:.*"))
@@ -140,8 +142,9 @@ tasks.build {
 }
 
 tasks.runServer {
-    minecraftVersion("26.1.2")
+    minecraftVersion("26.3")
     pluginJars.from(tasks.shadowJar.flatMap { it.archiveFile })
+    runDirectory = layout.projectDirectory.dir("run")
 }
 
 tasks.register<RunServer>("run1_21_11") {
@@ -167,4 +170,12 @@ tasks.register<RunServer>("run26_2") {
     minecraftVersion("26.2")
     pluginJars.from(tasks.shadowJar.flatMap { it.archiveFile })
     runDirectory = layout.projectDirectory.dir("run26_2")
+}
+
+tasks.register<RunServer>("run26_3") {
+    group = "runpaper"
+    description = "Run a Paper 26.3 test server with the plugin"
+    minecraftVersion("26.3")
+    pluginJars.from(tasks.shadowJar.flatMap { it.archiveFile })
+    runDirectory = layout.projectDirectory.dir("run26_3")
 }

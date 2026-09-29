@@ -1,11 +1,18 @@
 package com.vanillage.raytraceantixray.nms;
 
+import com.vanillage.raytraceantixray.antixray.ChunkPacketInfoAntiXrayState;
+import io.papermc.paper.antixray.ChunkPacketInfo;
 import java.util.concurrent.Executor;
+import net.minecraft.network.protocol.game.ClientboundLevelChunkPacketData;
+import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayerGameMode;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.LevelChunk;
+import org.jetbrains.annotations.Nullable;
 
 
 public final class NmsCompat {
@@ -42,5 +49,13 @@ public final class NmsCompat {
 
     public static Level gameModeLevel(ServerPlayerGameMode gameMode) {
         return nms().gameModeLevel(gameMode);
+    }
+
+    public static ChunkPacketInfo<BlockState> createChunkPacketInfo(ChunkPacketInfoAntiXrayState state, @Nullable ClientboundLevelChunkWithLightPacket chunkPacket, LevelChunk chunk) {
+        return nms().createChunkPacketInfo(state, chunkPacket, chunk);
+    }
+
+    public static ClientboundLevelChunkPacketData chunkPacketData(ClientboundLevelChunkWithLightPacket chunkPacket) {
+        return nms().chunkPacketData(chunkPacket);
     }
 }

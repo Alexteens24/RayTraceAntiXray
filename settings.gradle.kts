@@ -4,7 +4,7 @@ pluginManagement {
         maven("https://repo.papermc.io/repository/maven-public/")
     }
     plugins {
-        id("io.papermc.paperweight.userdev") version "2.0.0-beta.22"
+        id("io.papermc.paperweight.userdev") version "2.0.0-beta.23"
     }
 }
 
@@ -15,4 +15,4 @@ plugins {
 
 rootProject.name = "RayTraceAntiXray"
 
-include("paper_1_21_11", "paper_26_1_2", "paper_26_2")
+include("paper_1_21_11", "paper_26_1_2", "paper_26_2", "paper_26_3")

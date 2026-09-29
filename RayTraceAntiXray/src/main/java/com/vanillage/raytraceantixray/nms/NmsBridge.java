@@ -1,12 +1,18 @@
 package com.vanillage.raytraceantixray.nms;
 
+import com.vanillage.raytraceantixray.antixray.ChunkPacketInfoAntiXrayState;
+import io.papermc.paper.antixray.ChunkPacketInfo;
 import java.lang.reflect.Method;
 import java.util.concurrent.Executor;
+import net.minecraft.network.protocol.game.ClientboundLevelChunkPacketData;
+import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayerGameMode;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.LevelChunk;
 import org.bukkit.Bukkit;
 import org.jetbrains.annotations.Nullable;
 
@@ -26,6 +32,17 @@ public interface NmsBridge {
     Executor serverExecutor(MinecraftServer server);
 
     Level gameModeLevel(ServerPlayerGameMode gameMode);
+
+    /**
+     * Creates the {@code ChunkPacketInfo} subclass for this Paper version.
+     *
+     * <p>Paper 26.3 builds the chunk packet from the chunk alone and attaches the packet afterwards, so
+     * {@code chunkPacket} is {@code null} on that version and the packet is never read here.
+     */
+    ChunkPacketInfo<BlockState> createChunkPacketInfo(ChunkPacketInfoAntiXrayState state, @Nullable ClientboundLevelChunkWithLightPacket chunkPacket, LevelChunk chunk);
+
+    /** Paper 26.3 renamed {@code getChunkData()} to the record accessor {@code chunkData()}. */
+    ClientboundLevelChunkPacketData chunkPacketData(ClientboundLevelChunkWithLightPacket chunkPacket);
 
     static NmsBridge get() {
         return Holder.INSTANCE;
