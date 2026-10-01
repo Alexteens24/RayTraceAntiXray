@@ -57,6 +57,18 @@ isolating each difference in the NMS subprojects:
 5. **`onPlayerLeftClickBlock`** takes `Level` instead of `ServerPlayerGameMode` (see the note above: both
    overloads are declared).
 
+Two hooks now have two overloads on the controller, so neither is dead code — Paper calls whichever one its
+own base class declares, and deleting the other would silently disable ray tracing on that version:
+
+| Overload | Paper |
+|----------|-------|
+| `getChunkPacketInfo(LevelChunk)` | 26.3 |
+| `getChunkPacketInfo(ClientboundLevelChunkWithLightPacket, LevelChunk)` | 1.21.11, 26.1.2, 26.2 |
+| `onPlayerLeftClickBlock(Level, …)` | 26.2, 26.3 |
+| `onPlayerLeftClickBlock(ServerPlayerGameMode, …)` | 1.21.11, 26.1.2 |
+
+`ChunkPacketBlockControllerSignatureTest` asserts all four stay declared.
+
 Shared chunk-packet state (target player, nearby chunk cache, obfuscation hand-off) lives in the main
 module in `ChunkPacketInfoAntiXrayState`, so the per-version subclasses stay a few lines each.
 `ChunkPacketInfoAntiXray` is a plain accessor interface over `ChunkPacketInfo`; every accessor it declares
