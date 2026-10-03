@@ -74,7 +74,11 @@ public final class WorldListener implements Listener {
             field.setAccessible(true);
             field.set(serverLevel, controller);
         } catch (NoSuchFieldException | IllegalAccessException e) {
-            throw new RuntimeException(e);
+            throw new IllegalStateException("RayTraceAntiXray cannot install its chunk packet controller on Minecraft "
+                + NmsCompat.detectedMinecraftVersion()
+                + ". Paper no longer exposes Level.chunkPacketBlockController under that name, which means this JAR is"
+                + " not built for that server version. Use the matching release, or update WorldListener to the"
+                + " current NMS field (cause: " + e + ").", e);
         }
     }
 }

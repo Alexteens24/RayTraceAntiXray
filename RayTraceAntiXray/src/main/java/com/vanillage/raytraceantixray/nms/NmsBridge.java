@@ -48,14 +48,29 @@ public interface NmsBridge {
         return Holder.INSTANCE;
     }
 
+    /**
+     * Best-effort Minecraft version of the running server, for diagnostics.
+     *
+     * <p>Never throws: callers use this to build human-readable messages, and a failure to read the version
+     * must not mask the original problem.
+     */
+    static String detectedMinecraftVersion() {
+        String version = minecraftVersionFromServerBuildInfo();
+        if (version != null) {
+            return version;
+        }
+        try {
+            return Bukkit.getServer().getMinecraftVersion();
+        } catch (final Throwable e) {
+            return "unknown";
+        }
+    }
+
     final class Holder {
         private static final NmsBridge INSTANCE;
 
         static {
-            String minecraftVersion = minecraftVersionFromServerBuildInfo();
-            if (minecraftVersion == null) {
-                minecraftVersion = Bukkit.getServer().getMinecraftVersion();
-            }
+            final String minecraftVersion = detectedMinecraftVersion();
             final String underscored = minecraftVersion.replace('.', '_');
             final String className = "com.vanillage.raytraceantixray.nms.paper_"
                 + underscored + ".NmsCompat" + underscored;
@@ -67,16 +82,16 @@ public interface NmsBridge {
                         + " (no NMS bindings at " + className + ")", e);
             }
         }
+    }
 
-        private static @Nullable String minecraftVersionFromServerBuildInfo() {
-            try {
-                final Class<?> cls = Class.forName("io.papermc.paper.ServerBuildInfo");
-                final Method method = cls.getMethod("minecraftVersionId");
-                final Object instance = cls.getMethod("buildInfo").invoke(null);
-                return (String) method.invoke(instance);
-            } catch (final Throwable e) {
-                return null;
-            }
+    private static @Nullable String minecraftVersionFromServerBuildInfo() {
+        try {
+            final Class<?> cls = Class.forName("io.papermc.paper.ServerBuildInfo");
+            final Method method = cls.getMethod("minecraftVersionId");
+            final Object instance = cls.getMethod("buildInfo").invoke(null);
+            return (String) method.invoke(instance);
+        } catch (final Throwable e) {
+            return null;
         }
     }
 }

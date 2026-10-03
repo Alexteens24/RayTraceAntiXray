@@ -58,4 +58,9 @@ public final class NmsCompat {
     public static ClientboundLevelChunkPacketData chunkPacketData(ClientboundLevelChunkWithLightPacket chunkPacket) {
         return nms().chunkPacketData(chunkPacket);
     }
+
+    /** Minecraft version of the running server, for diagnostics and error messages. Never throws. */
+    public static String detectedMinecraftVersion() {
+        return NmsBridge.detectedMinecraftVersion();
+    }
 }

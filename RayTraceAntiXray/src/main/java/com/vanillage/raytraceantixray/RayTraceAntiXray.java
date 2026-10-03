@@ -2,6 +2,7 @@ package com.vanillage.raytraceantixray;
 
 import java.io.File;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -102,7 +103,10 @@ public final class RayTraceAntiXray extends JavaPlugin implements RayTraceAntiXr
 
         packetEventsChunkListener = new PacketListener(this);
         PacketEvents.getAPI().getEventManager().registerListener(packetEventsChunkListener);
-        getCommand("raytraceantixray").setExecutor(new RayTraceAntiXrayTabExecutor(this));
+        Objects.requireNonNull(
+                getCommand("raytraceantixray"),
+                "command 'raytraceantixray' is missing from plugin.yml"
+            ).setExecutor(new RayTraceAntiXrayTabExecutor(this));
         getLogger().info(getPluginMeta().getDisplayName() + " enabled");
     }
 

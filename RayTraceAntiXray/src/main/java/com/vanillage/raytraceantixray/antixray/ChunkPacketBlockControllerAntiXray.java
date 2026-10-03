@@ -350,8 +350,24 @@ public final class ChunkPacketBlockControllerAntiXray extends ChunkPacketBlockCo
             Y_FIELD = blockEntityInfoClass.getDeclaredField("y");
             Y_FIELD.setAccessible(true);
         } catch (NoSuchFieldException | ClassNotFoundException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException(blockEntityReflectionMessage(e), e);
         }
+    }
+
+    /**
+     * Builds an actionable message for the three block-entity fields this controller reflects on.
+     *
+     * <p>A renamed Mojang-mapped field is the most likely reason this fails, and the raw {@link
+     * NoSuchFieldException} does not tell an operator which server version broke or where to look. See
+     * {@code FORK.md} for the mappings this fork is pinned to.
+     */
+    private static String blockEntityReflectionMessage(Throwable cause) {
+        return "RayTraceAntiXray cannot read the chunk block-entity fields on Minecraft "
+            + NmsCompat.detectedMinecraftVersion()
+            + ". Paper renamed one of ClientboundLevelChunkPacketData.blockEntitiesData,"
+            + " BlockEntityInfo.packedXZ or BlockEntityInfo.y, which means this JAR is not built for that"
+            + " server version. Use the matching release, or update the NMS bindings in"
+            + " ChunkPacketBlockControllerAntiXray (cause: " + cause + ").";
     }
 
     private record ObfuscationCache(

@@ -84,36 +84,53 @@ public final class RayTraceCallable implements Callable<Void> {
             @Override
             public boolean isOccluding(int x, int y, int z) {
                 int chunkX = x >> 4;
+                int sectionY = y >> 4;
                 int chunkZ = z >> 4;
 
                 if (this.chunkX != chunkX || this.chunkZ != chunkZ) {
+                    this.chunkX = chunkX;
+                    this.sectionY = sectionY;
+                    this.chunkZ = chunkZ;
                     mutableLongWrapper.setValue(NmsCompat.chunkKey(chunkX, chunkZ));
                     ChunkBlocks chunkBlocks = chunks.get(mutableLongWrapper);
 
                     if (chunkBlocks == null) {
+                        chunk = null;
+                        section = null;
                         return UNLOADED_OCCLUDING;
                     }
 
-                    LevelChunk chunk = chunkBlocks.getChunk();
+                    chunk = chunkBlocks.getChunk();
 
                     if (chunk == null) {
+                        section = null;
                         return UNLOADED_OCCLUDING;
                     }
 
-                    int sectionY = y >> 4;
                     int minSectionY = chunk.getMinSectionY();
 
                     if (sectionY < minSectionY || sectionY >= chunk.getMaxSectionY()) {
+                        section = null;
                         return false;
                     }
 
-                    LevelChunkSection section = chunk.getSections()[sectionY - minSectionY];
-                    return section != null && !section.hasOnlyAir() && solidGlobal[ChunkPacketBlockControllerAntiXray.GLOBAL_BLOCKSTATE_PALETTE.idFor(getBlockState(section, x, y, z), PaletteResize.noResizeExpected())];
+                    section = chunk.getSections()[sectionY - minSectionY];
+
+                    if (section == null) {
+                        return false;
+                    }
+
+                    if (section.hasOnlyAir()) {
+                        section = null;
+                        return false;
+                    }
+
+                    return solidGlobal[ChunkPacketBlockControllerAntiXray.GLOBAL_BLOCKSTATE_PALETTE.idFor(getBlockState(section, x, y, z), PaletteResize.noResizeExpected())];
                 }
 
-                int sectionY = y >> 4;
-
                 if (this.sectionY != sectionY) {
+                    this.sectionY = sectionY;
+
                     if (chunk == null) {
                         return UNLOADED_OCCLUDING;
                     }
@@ -121,11 +138,22 @@ public final class RayTraceCallable implements Callable<Void> {
                     int minSectionY = chunk.getMinSectionY();
 
                     if (sectionY < minSectionY || sectionY >= chunk.getMaxSectionY()) {
+                        section = null;
                         return false;
                     }
 
-                    LevelChunkSection section = chunk.getSections()[sectionY - minSectionY];
-                    return section != null && !section.hasOnlyAir() && solidGlobal[ChunkPacketBlockControllerAntiXray.GLOBAL_BLOCKSTATE_PALETTE.idFor(getBlockState(section, x, y, z), PaletteResize.noResizeExpected())];
+                    section = chunk.getSections()[sectionY - minSectionY];
+
+                    if (section == null) {
+                        return false;
+                    }
+
+                    if (section.hasOnlyAir()) {
+                        section = null;
+                        return false;
+                    }
+
+                    return solidGlobal[ChunkPacketBlockControllerAntiXray.GLOBAL_BLOCKSTATE_PALETTE.idFor(getBlockState(section, x, y, z), PaletteResize.noResizeExpected())];
                 }
 
                 if (section == null) {
