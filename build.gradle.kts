@@ -12,6 +12,12 @@ group = "com.vanillage.raytraceantixray"
 version = "1.18.0"
 description = "Paper plugin for server-side async multithreaded ray tracing to hide ores that are exposed to air using Paper Anti-Xray engine-mode 1."
 
+// PacketEvents is a hard runtime dependency (plugin.yml `depend`). Test servers must install it or Paper
+// refuses to load RayTraceAntiXray, so the run tasks download the matching build from Modrinth.
+// The Modrinth build carries the `+spigot` suffix; the compile dependency below uses the CodeMC version.
+val packetEventsVersion = "2.14.0"
+val packetEventsModrinthVersion = "$packetEventsVersion+spigot"
+
 java {
     disableAutoTargetJvm()
     toolchain.languageVersion.set(JavaLanguageVersion.of(25))
@@ -27,7 +33,7 @@ repositories {
 
 dependencies {
     paperweight.paperDevBundle("26.3.build.135-beta")
-    compileOnly("com.github.retrooper:packetevents-spigot:2.14.0")
+    compileOnly("com.github.retrooper:packetevents-spigot:$packetEventsVersion")
     implementation("org.bstats:bstats-bukkit:3.2.1")
     implementation("dev.faststats.metrics:bukkit:0.29.4")
 
@@ -145,6 +151,9 @@ tasks.runServer {
     minecraftVersion("26.3")
     pluginJars.from(tasks.shadowJar.flatMap { it.archiveFile })
     runDirectory = layout.projectDirectory.dir("run")
+    downloadPlugins {
+        modrinth("packetevents", packetEventsModrinthVersion)
+    }
 }
 
 tasks.register<RunServer>("run1_21_11") {
@@ -154,6 +163,9 @@ tasks.register<RunServer>("run1_21_11") {
     pluginJars.from(tasks.shadowJar.flatMap { it.archiveFile })
     runDirectory = layout.projectDirectory.dir("run1_21_11")
     systemProperties["Paper.IgnoreJavaVersion"] = true
+    downloadPlugins {
+        modrinth("packetevents", packetEventsModrinthVersion)
+    }
 }
 
 tasks.register<RunServer>("run26_1_2") {
@@ -162,6 +174,9 @@ tasks.register<RunServer>("run26_1_2") {
     minecraftVersion("26.1.2")
     pluginJars.from(tasks.shadowJar.flatMap { it.archiveFile })
     runDirectory = layout.projectDirectory.dir("run26_1_2")
+    downloadPlugins {
+        modrinth("packetevents", packetEventsModrinthVersion)
+    }
 }
 
 tasks.register<RunServer>("run26_2") {
@@ -170,6 +185,9 @@ tasks.register<RunServer>("run26_2") {
     minecraftVersion("26.2")
     pluginJars.from(tasks.shadowJar.flatMap { it.archiveFile })
     runDirectory = layout.projectDirectory.dir("run26_2")
+    downloadPlugins {
+        modrinth("packetevents", packetEventsModrinthVersion)
+    }
 }
 
 tasks.register<RunServer>("run26_3") {
@@ -178,4 +196,7 @@ tasks.register<RunServer>("run26_3") {
     minecraftVersion("26.3")
     pluginJars.from(tasks.shadowJar.flatMap { it.archiveFile })
     runDirectory = layout.projectDirectory.dir("run26_3")
+    downloadPlugins {
+        modrinth("packetevents", packetEventsModrinthVersion)
+    }
 }

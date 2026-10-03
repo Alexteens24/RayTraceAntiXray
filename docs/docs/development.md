@@ -8,7 +8,7 @@ This page covers building, testing, and the technical architecture of this fork.
 ./gradlew build
 ```
 
-Produces `build/libs/RayTraceAntiXray-<version>.jar` — one universal JAR for Paper 26.3, 26.2 and 26.1.2.
+Produces `build/libs/RayTraceAntiXray-<version>.jar` — one universal JAR for Paper 26.3, 26.2, 26.1.2 and 1.21.11.
 
 | Area | This fork |
 |------|-----------|

@@ -9,6 +9,8 @@ on:
       - "RayTraceAntiXray/**"
       - "paper_1_21_11/**"
       - "paper_26_1_2/**"
+      - "paper_26_2/**"
+      - "paper_26_3/**"
       - "buildSrc/**"
       - "build.gradle.kts"
       - "settings.gradle.kts"
@@ -21,6 +23,8 @@ on:
       - "RayTraceAntiXray/**"
       - "paper_1_21_11/**"
       - "paper_26_1_2/**"
+      - "paper_26_2/**"
+      - "paper_26_3/**"
       - "buildSrc/**"
       - "build.gradle.kts"
       - "settings.gradle.kts"
@@ -104,7 +108,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        mc: ["1.21.11", "26.1.2"]
+        mc: ["1.21.11", "26.1.2", "26.2", "26.3"]
+        include:
+          - mc: "1.21.11"
+            task: run1_21_11
+            run_dir: run1_21_11
+          - mc: "26.1.2"
+            task: run26_1_2
+            run_dir: run26_1_2
+          - mc: "26.2"
+            task: run26_2
+            run_dir: run26_2
+          - mc: "26.3"
+            task: run26_3
+            run_dir: run26_3
     steps:
       - uses: actions/checkout@v4
 
@@ -123,12 +140,48 @@ jobs:
       - name: Smoke boot Paper ${{ matrix.mc }}
         run: |
           ./gradlew shadowJar --no-daemon --stacktrace
-          timeout 180 ./gradlew \
-            $([ "${{ matrix.mc }}" = "1.21.11" ] && echo run1_21_11 || echo run26_1_2) \
-            --no-daemon --stacktrace --args="nogui" \
-            || { code=$?; if [ "$code" -eq 124 ]; then exit 0; fi; exit "$code"; }
+          # Without an accepted EULA Paper refuses to boot and no plugin code runs at all,
+          # which would make the enable assertion below meaningless.
+          echo "eula=true" > "${{ matrix.run_dir }}/eula.txt"
+          set +e
+          timeout 300 ./gradlew "${{ matrix.task }}" --no-daemon --stacktrace
+          code=$?
+          set -e
+          # 124 = timeout, i.e. the server booted and kept running. Any other non-zero code is a real failure.
+          if [ "$code" -ne 0 ] && [ "$code" -ne 124 ]; then
+            echo "::error::gradle ${{ matrix.task }} exited with $code"
+            exit "$code"
+          fi
+
+      - name: Assert plugin enabled
+        run: |
+          log="${{ matrix.run_dir }}/logs/latest.log"
+          if [ ! -f "$log" ]; then
+            echo "::error::no server log at $log — the server never started"
+            exit 1
+          fi
+          # A plugin that fails to enable (bad NMS binding, renamed reflective field,
+          # unsupported server version) does NOT stop Paper, so a successful boot is
+          # not enough. Require the plugin's own enable line: "[RayTraceAntiXray] <name> v<version> enabled".
+          if ! grep -qE '\[RayTraceAntiXray\] .+ enabled$' "$log"; then
+            echo "::error::RayTraceAntiXray did not enable on ${{ matrix.mc }}"
+            echo "--- plugin / error lines ---"
+            grep -iE "raytraceantixray|could not load|error|exception" "$log" | head -60
+            exit 1
+          fi
+          if grep -qE "Could not load .*RayTraceAntiXray|Error occurred while enabling RayTraceAntiXray|Failed to enable" "$log"; then
+            echo "::error::RayTraceAntiXray reported a load/enable failure on ${{ matrix.mc }}"
+            grep -iE "raytraceantixray" "$log" | head -60
+            exit 1
+          fi
 
       - name: Summary
         if: always()
         run: |
           echo "## Smoke — Paper ${{ matrix.mc }}" >> "$GITHUB_STEP_SUMMARY"
+          log="${{ matrix.run_dir }}/logs/latest.log"
+          if [ -f "$log" ] && grep -qE '\[RayTraceAntiXray\] .+ enabled$' "$log"; then
+            echo "Plugin enabled." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Plugin did **not** report as enabled." >> "$GITHUB_STEP_SUMMARY"
+          fi
